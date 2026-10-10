@@ -198,6 +198,13 @@ export default {
     // draw on the fund they administer.
     'welfare.yourself': 'Yourself',
     'welfare.adminsAreMembersHint': 'You are a member of this chama too, so your own record is listed first.',
+
+    // ---- Paying out more than the fund shows ----
+    // Welfare bookkeeping often trails the cash in the treasurer’s hand, so the
+    // recorded balance can be lower than what is really there. The app lets the
+    // committee decide, but says so first rather than after the fact.
+    'welfare.fundShortWarning': 'The fund only shows {available} recorded, but this request is for {amount} - short by {short}. Still go ahead?',
+    'welfare.fundNowShort': 'Paid out, but the fund is now {short} short of its recorded contributions. Record the missing contributions so the books match.',
     'status.disbursed': 'Paid out',
 
     // ---- Showing the books to members ----
@@ -405,6 +412,10 @@ export default {
     // ---- Msimamizi pia ni mwanachama, kwenye fomu ya wafaahamu ---
     'welfare.yourself': 'Wewe mwenyewe',
     'welfare.adminsAreMembersHint': 'Wewe pia ni mwanachama wa kundi hili, kwa hiyo rekodi yako ipo kwanza.',
+
+    // ---- Kulipa zaidi kuliko mfuko unaonyesha ----
+    'welfare.fundShortWarning': 'Mfuko unaonyesha {available} tu, lakini ombi hili ni kiasi cha {amount} - upungufu wa {short}. Endelea bado?',
+    'welfare.fundNowShort': 'Imelipwa, lakini mfuko sasa upungufu wa {short} kuliko machango yaliyoandikwa. Andika machango yaliyokoseka ili hesabu ziendane.',
     'status.disbursed': 'Imelipwa',
 
     // ---- Kuonyesha hesabu kwa wanachama ----

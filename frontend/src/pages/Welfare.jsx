@@ -96,11 +96,46 @@ const Welfare = () => {
 
   /* --------------------------------------------------------------- actions --- */
 
+  /*
+   * Whether the fund's recorded balance can cover a request.
+   *
+   * The backend no longer refuses a payment the balance cannot cover. Welfare
+   * bookkeeping routinely runs behind the cash actually in the treasurer's hand,
+   * and refusing left every request impossible to act on. An admin should still
+   * be told first, because approving 3,000 against a fund showing zero is a
+   * decision they may not have meant to make blind.
+   */
+  const wouldBeShort = (amount) =>
+    Boolean(fund) && Number(amount) > Number(fund.available);
+
   const runAction = async (id, action, successKey) => {
+    const target = requests.find((r) => String(r.id) === String(id));
+
+    if (target && wouldBeShort(target.amount)) {
+      const shortBy = Number(target.amount) - Number(fund.available);
+      const proceed = window.confirm(
+        t('welfare.fundShortWarning', {
+          amount: money(target.amount),
+          available: money(fund.available),
+          short: money(shortBy)
+        })
+      );
+      if (!proceed) return;
+    }
+
     setBusyId(id);
     try {
       const { data } = await axios.post(`/api/welfare/requests/${id}/${action}`);
       toast.success(t(successKey));
+
+      // The backend reports whether the fund ended up short, so the consequence is
+      // stated rather than left for someone to find in the ledger later.
+      if (data.underfunded) {
+        toast(t('welfare.fundNowShort', { short: money(data.shortfall) }), {
+          icon: '!',
+          duration: 8000
+        });
+      }
       // The fund position moves with every decision, so it is refreshed rather
       // than guessed at: a stale balance here is the number members trust most.
       if (data.fund) setFund(data.fund);

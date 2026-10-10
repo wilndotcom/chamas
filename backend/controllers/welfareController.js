@@ -435,13 +435,30 @@ const approveWelfareRequest = async (req, res) => {
       });
     }
 
+    /*
+     * Shortfall is reported, not enforced.
+     *
+     * This refused the approval outright when the recorded balance could not cover
+     * the request. That blocked the fund from doing the one thing it exists for:
+     * helping a member in need. Bookkeeping for a welfare fund runs behind
+     * reality - contributions get recorded late or not at all, and the treasurer
+     * holds cash that never reaches the ledger - so a perfectly healthy fund
+     * routinely reads as empty and every request became impossible to act on.
+     *
+     * The committee is the right place to make this call. They are told the
+     * shortfall here and see it on the fund afterwards, so the gap is visible
+     * rather than silently absorbed.
+     */
     const position = await fundPosition();
-    if (Number(request.amount) > position.available) {
-      return res.status(400).json({
-        error:
-          `The fund holds ${position.available} but this request is for ` +
-          `${request.amount}. Approving it would promise money the fund does not have.`
-      });
+    const amount = Number(request.amount);
+    const shortfall = Math.round((amount - position.available) * 100) / 100;
+    const underfunded = shortfall > 0;
+
+    if (underfunded) {
+      console.warn(
+        `[welfare] approving request ${id} for ${amount} with only ` +
+        `${position.available} recorded in the fund (short by ${shortfall})`
+      );
     }
 
     await pool.execute(
@@ -456,7 +473,15 @@ const approveWelfareRequest = async (req, res) => {
       message: `Your welfare request has been approved. It will be paid out shortly.`
     }).catch((e) => console.error('[welfare] notification failed:', e.message));
 
-    res.json({ success: true, message: 'Welfare request approved.', fund: await fundPosition() });
+    res.json({
+      success: true,
+      message: underfunded
+        ? 'Welfare request approved, but the fund is short of this amount.'
+        : 'Welfare request approved.',
+      underfunded,
+      shortfall: underfunded ? shortfall : 0,
+      fund: await fundPosition()
+    });
   } catch (error) {
     console.error('Approve welfare request error:', error);
     res.status(500).json({ error: 'Failed to approve welfare request.' });
@@ -491,12 +516,15 @@ const disburseWelfareRequest = async (req, res) => {
     }
 
     const position = await fundPosition();
-    if (Number(request.amount) > position.available) {
-      return res.status(400).json({
-        error:
-          `The fund holds ${position.available} but this request is for ` +
-          `${request.amount}.`
-      });
+    const amount = Number(request.amount);
+    const shortfall = Math.round((amount - position.available) * 100) / 100;
+    const underfunded = shortfall > 0;
+
+    if (underfunded) {
+      console.warn(
+        `[welfare] paying out request ${id} for ${amount} with only ` +
+        `${position.available} recorded in the fund (short by ${shortfall})`
+      );
     }
 
     await pool.execute(
@@ -524,8 +552,12 @@ const disburseWelfareRequest = async (req, res) => {
     res.json({
       success: true,
       ledger_id: entry.insertId,
-      fund: await fundPosition(),
-      message: 'Welfare request paid out.'
+      message: underfunded
+        ? 'Welfare request paid out. Note: the fund is now short of its recorded contributions.'
+        : 'Welfare request paid out.',
+      underfunded,
+      shortfall: underfunded ? shortfall : 0,
+      fund: await fundPosition()
     });
   } catch (error) {
     console.error('Disburse welfare request error:', error);
