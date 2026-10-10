@@ -192,6 +192,12 @@ export default {
     'welfare.capIs': 'This group limits a single request to {amount}.',
     'welfare.noContributions': 'No welfare contributions recorded yet.',
     'welfare.noRequests': 'No welfare requests yet.',
+
+    // ---- Admins as members, on the welfare form ----
+    // Said plainly, because a committee will otherwise assume an admin cannot
+    // draw on the fund they administer.
+    'welfare.yourself': 'Yourself',
+    'welfare.adminsAreMembersHint': 'You are a member of this chama too, so your own record is listed first.',
     'status.disbursed': 'Paid out',
 
     // ---- Showing the books to members ----
@@ -395,6 +401,10 @@ export default {
     'welfare.capIs': 'Kundi hili linaliomo ombi moja kwa {amount}.',
     'welfare.noContributions': 'Hakuna machango ya wafaahamu yaliyorekodiwa bado.',
     'welfare.noRequests': 'Hakuna maombi ya wafaahamu bado.',
+
+    // ---- Msimamizi pia ni mwanachama, kwenye fomu ya wafaahamu ---
+    'welfare.yourself': 'Wewe mwenyewe',
+    'welfare.adminsAreMembersHint': 'Wewe pia ni mwanachama wa kundi hili, kwa hiyo rekodi yako ipo kwanza.',
     'status.disbursed': 'Imelipwa',
 
     // ---- Kuonyesha hesabu kwa wanachama ----

@@ -5,7 +5,15 @@ const pool = require('../config/database');
 const getAllAdmins = async (req, res) => {
   try {
     const [admins] = await pool.execute(
-      `SELECT a.id, a.full_name, a.username, a.email, a.phone, a.is_active, a.last_login, a.created_at, r.name as role_name
+      /*
+       * member_id is included because admins are also members (migration 016).
+       * A screen offering "record a welfare contribution" needs to know which
+       * member record is the admin's own: without it the client had no way to
+       * offer them as a choice, so an admin could only ever pay into the fund on
+       * somebody else's behalf.
+       */
+      `SELECT a.id, a.member_id, a.full_name, a.username, a.email, a.phone,
+              a.is_active, a.last_login, a.created_at, r.name as role_name
        FROM admins a JOIN roles r ON a.role_id = r.id
        ORDER BY a.created_at DESC`
     );

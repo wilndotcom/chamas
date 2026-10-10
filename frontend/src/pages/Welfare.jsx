@@ -38,6 +38,9 @@ const Welfare = () => {
   const { t } = useI18n();
   const { money, opts: fmt } = useFormat();
   const { user } = useAuth();
+  // Admins are members too (migration 016), so the signed-in admin's own member
+  // record is one of the legitimate recipients of a welfare contribution.
+  const myMemberId = user?.member_id || null;
   const isMember = user?.type === 'member';
 
   const [contributions, setContributions] = useState([]);
@@ -425,6 +428,8 @@ const Welfare = () => {
                 <MemberPicker
                   value={contributeForm.member_id}
                   onChange={(v) => setContributeForm({ ...contributeForm, member_id: v })}
+                  selfId={myMemberId}
+                  selfName={user?.full_name}
                 />
               )}
               <div className="form-group">
@@ -464,10 +469,15 @@ const Welfare = () => {
 /**
  * The member list for an admin's contribution form.
  *
+ * The signed-in admin appears in it and is the default. An admin is a member of
+ * the chama, so recording their own welfare contribution is the most ordinary
+ * thing on this form - it should not require picking somebody else first, which
+ * is what made the fund un-contributable by the very people who run it.
+ *
  * Loaded on demand rather than on mount, so opening the Welfare screen does not
  * pull every member's record before it is needed.
  */
-const MemberPicker = ({ value, onChange }) => {
+const MemberPicker = ({ value, onChange, selfId, selfName }) => {
   const { t } = useI18n();
   const [members, setMembers] = useState([]);
 
@@ -477,17 +487,38 @@ const MemberPicker = ({ value, onChange }) => {
       .catch(() => setMembers([]));
   }, []);
 
+  // Everyone else, so the signed-in admin's own record cannot appear twice.
+  const others = members.filter((m) => String(m.id) !== String(selfId));
+
   return (
     <div className="form-group">
       <label>{t('contrib.member')}</label>
-      <select value={value} onChange={(e) => onChange(e.target.value)} required>
-        <option value="">{t('welfare.chooseMember')}</option>
-        {members.map((m) => (
-          <option key={m.id} value={m.id}>
+      <select
+        value={value || (selfId ? String(selfId) : '')}
+        onChange={(e) => onChange(e.target.value)}
+        required
+      >
+        {/*
+          No blank option when the admin has a member record: preselecting them
+          means the common case - an admin paying their own welfare - is one click
+          and no thinking.
+        */}
+        {selfId ? (
+          <option value={String(selfId)}>
+            {selfName || t('welfare.yourself')} {t('transp.alsoAdmin')}
+          </option>
+        ) : (
+          <option value="">{t('welfare.chooseMember')}</option>
+        )}
+        {others.map((m) => (
+          <option key={m.id} value={String(m.id)}>
             {m.full_name} ({m.phone})
           </option>
         ))}
       </select>
+      {selfId && (
+        <small className="field-hint">{t('welfare.adminsAreMembersHint')}</small>
+      )}
     </div>
   );
 };

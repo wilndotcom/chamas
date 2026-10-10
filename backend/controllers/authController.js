@@ -72,6 +72,10 @@ const adminLogin = async (req, res) => {
       token,
       admin: {
         id: admin.id,
+        // Admins are members too (migration 016). The client needs this to
+        // offer the signed-in admin as a recipient when recording a welfare
+        // contribution, and to reach their own member portal.
+        member_id: admin.member_id,
         type: 'admin',
         full_name: admin.full_name,
         email: admin.email,
@@ -159,7 +163,14 @@ const memberLogin = async (req, res) => {
 const getAdminProfile = async (req, res) => {
   try {
     const [admins] = await pool.execute(
-      `SELECT a.id, a.full_name, a.email, a.phone, a.role_id, a.last_login, a.created_at, r.name as role_name
+      /*
+       * member_id is selected as well as returned below. Selecting it is the part
+       * that was missed: the response object referenced a.member_id, which was
+       * simply absent from the row, so the field came back undefined and the
+       * client treated the signed-in admin as having no member record at all.
+       */
+      `SELECT a.id, a.member_id, a.full_name, a.email, a.phone, a.role_id, a.last_login,
+              a.created_at, r.name as role_name
        FROM admins a JOIN roles r ON a.role_id = r.id WHERE a.id = ?`,
       [req.user.id]
     );
@@ -185,6 +196,7 @@ const getAdminProfile = async (req, res) => {
     res.json({
       admin: {
         id: a.id,
+        member_id: a.member_id,
         type: 'admin',
         full_name: a.full_name,
         email: a.email,
