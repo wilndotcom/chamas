@@ -44,6 +44,12 @@ final class Router
         $this->add('PUT', $p, $h);
     }
 
+    /** PATCH, for partial updates. The member status endpoint uses it. */
+    public function patch(string $p, callable $h): void
+    {
+        $this->add('PATCH', $p, $h);
+    }
+
     public function delete(string $p, callable $h): void
     {
         $this->add('DELETE', $p, $h);
@@ -92,7 +98,22 @@ final class Router
             }
 
             $handler = $route['handler'];
-            $handler(new Request(), $params);
+
+            /*
+             * The parameters are set on the request, not passed alongside it.
+             *
+             * A route declared as function (Request $r) receives nothing useful as
+             * a second argument, so $r->param('id') silently returns null and every
+             * id route 404s against rows that plainly exist. Setting them on the
+             * request makes one shape of handler work for both simple and
+             * parameterised routes, which is how the Node version's middleware
+             * behaved - req.params came from Express, not from the callback
+             * signature.
+             */
+            $request = new Request();
+            $request->params = $params ?? [];
+
+            $handler($request, $params ?? []);
             return;
         }
 

@@ -362,8 +362,12 @@ final class AuthController
      *
      * Best effort on purpose: an audit failure must not block the action the
      * user asked for, but it is logged so it is never silently lost.
+     *
+     * Ids arrive as strings from MySQL, so these are cast rather than typed as
+     * int. Typing them would make every caller responsible for a cast, and the
+     * one that is forgotten is a fatal error during a password change.
      */
-    private static function audit(?int $adminId, string $action, string $entity, int $entityId, array $details): void
+    private static function audit($adminId, string $action, string $entity, $entityId, array $details): void
     {
         try {
             Database::run(

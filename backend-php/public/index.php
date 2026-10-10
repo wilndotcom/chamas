@@ -42,12 +42,16 @@ require_once $autoload;
 /*
  * The backend root: the folder holding vendor/, app/ and routes/.
  *
- * Derived by going up from the autoloader itself, so it is correct in both
- * layouts without this file knowing which one it is in. Stripping the
- * '/vendor/autoload.php' suffix rather than using dirname(), which would leave
- * 'vendor' itself and then look for vendor/app.
+ * realpath() matters here. Without it the candidate path keeps the '/../' from
+ * the autoloader search, so dirname() on it returns 'public' rather than the
+ * folder above - and every path derived from $base then points somewhere that
+ * does not exist. The failure is silent: the app boots, finds no .env, and
+ * reports a missing JWT_SECRET rather than a bad path.
+ *
+ * Stripping the '/vendor/autoload.php' suffix rather than calling dirname(),
+ * which would leave 'vendor' itself and then look for vendor/app.
  */
-$base = substr($autoload, 0, -strlen('/vendor/autoload.php'));
+$base = realpath(substr($autoload, 0, -strlen('/vendor/autoload.php'))) ?: __DIR__;
 
 use TheTeam\ApiRoutes;
 use TheTeam\Database;
@@ -73,14 +77,27 @@ use TheTeam\Router;
  * which is what you want - a token from one must not silently keep working on
  * the other after a rotation.
  */
-$ownEnv = __DIR__;
+$ownEnv = $base;
 
 // Before anything logs, so the startup banner reaches the terminal when there
 // is one. Under Apache there is no terminal, and it goes to the error log.
 Log::useStderr(PHP_SAPI === 'cli' || PHP_SAPI === 'cli-server');
 
-Env::load(__DIR__);
-Env::load(dirname(__DIR__));
+// Closest first, so a port-specific file always wins over the shared one.
+// $ownEnv is the folder holding vendor/.
+Env::load($ownEnv);
+
+/*
+ * Then the checkout layout: the project root is one level above the backend
+ * folder, and backend/.env - the file the Node app uses - sits inside it.
+ *
+ * $base is the folder holding vendor/, which is backend-php/ in a checkout but
+ * backend/ in a XAMPP install. Going up from it rather than from __DIR__ means
+ * the same line is correct in both, and in an install it simply points at a
+ * directory with no .env in it.
+ */
+Env::load(dirname($ownEnv) . '/backend');
+
 Env::finish();
 
 /*

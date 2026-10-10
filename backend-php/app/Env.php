@@ -21,6 +21,39 @@ final class Env
     private static array $loadedFiles = [];
 
     /**
+     * Every directory that was searched, whether or not it had a .env.
+     *
+     * Reported when nothing is found. "No .env" alone is not enough to act on -
+     * the usual cause is a path that resolves somewhere unexpected, and naming
+     * the directories is the difference between a two-second fix and an
+     * afternoon. That exact failure happened during this port: a derived path
+     * kept its '/../', so dirname() returned public/ and every lookup missed
+     * while the app still booted.
+     *
+     * @var string[]
+     */
+    private static array $searchedPaths = [];
+
+    /**
+     * The timezone the database stores its timestamps in.
+     *
+     * mysql2 hands DATETIME columns back to JavaScript as Date objects, which
+     * JavaScript then reads as UTC. A value written as 2026-10-04 00:00:00 in
+     * Nairobi arrives in the Node version as 2026-10-03T21:00:00Z and renders in
+     * the browser as the 3rd, not the 4th.
+     *
+     * That is a long-standing bug in the Node version, and reproducing it in PHP
+     * would be faithful rather than correct. It is fixed here instead - see
+     * Database::setUpConnection - and the difference is listed in DEPLOYMENT.md
+     * so it is a decision on record rather than a surprise. The day a member
+     * joined is the kind of figure they remember and check.
+     */
+    public static function getDatabaseTimezone(): string
+    {
+        return self::get('DB_TIMEZONE', 'Africa/Nairobi');
+    }
+
+    /**
      * Loads the .env in a directory.
      *
      * Callable more than once with different roots: the first root loaded wins,
@@ -36,6 +69,7 @@ final class Env
             return;
         }
         self::$loadedRoots[$root] = true;
+        self::$searchedPaths[] = $root;
 
         $isProd = (self::raw('NODE_ENV') ?: 'development') === 'production';
         $primary = $isProd ? '.env.production' : '.env';
@@ -54,8 +88,8 @@ final class Env
     public static function finish(): void
     {
         if (self::$loadedFiles === []) {
-            Log::warn('No .env or .env.production found anywhere. '
-                . 'The app cannot reach the database without one.');
+            Log::warn('No .env or .env.production found. The app cannot reach the database '
+                . 'without one. Looked in: ' . implode(', ', self::$searchedPaths));
             return;
         }
 

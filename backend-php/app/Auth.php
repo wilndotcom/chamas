@@ -218,10 +218,15 @@ final class Auth
      * Returns null when there is no such account. It deliberately does not
      * reject a deactivated account: resolution and refusal are separate, so the
      * caller can choose the status code.
+     *
+     * $id accepts a string as well as an int. MySQL returns ids as strings
+     * through PDO, and typing this as int alone would turn every caller into a
+     * cast that somebody eventually forgets - which is a fatal error in the
+     * middle of a login rather than a wrong figure.
      */
-    public static function resolvePrincipal(int $id, string $type): ?array
+    public static function resolvePrincipal($id, string $type): ?array
     {
-        $principal = self::loadPrincipal($type, $id);
+        $principal = self::loadPrincipal($type, (int) $id);
         if ($principal === null) {
             return null;
         }
