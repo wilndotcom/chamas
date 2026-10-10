@@ -11,7 +11,19 @@ import { I18nProvider } from './i18n/I18nContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import InstallPrompt from './components/InstallPrompt';
 import { registerServiceWorker } from './pwa';
+import axios from 'axios';
 import './index.css';
+
+/*
+ * Where the API lives, derived from the same base as the router.
+ *
+ * Every request in the app is written as '/api/...'. Axios prepends baseURL to any
+ * URL that is not protocol-absolute, and a single leading slash is not, so this
+ * one line retargets all of them at '/the-team/api/...' when the app is served
+ * from a folder - without touching a single call site, and without them being
+ * able to disagree about it.
+ */
+axios.defaults.baseURL = import.meta.env.BASE_URL || '/';
 
 // Order matters here.
 //
@@ -27,10 +39,26 @@ import './index.css';
 //
 // FormatProvider is innermost because it reads the active locale from the
 // language provider.
+/*
+ * The prefix this build is served from, without a trailing slash.
+ *
+ * '/' at the root of a domain; '/the-team' when the app lives in a folder
+ * alongside other apps. React Router's basename must not keep the trailing
+ * slash or it matches nothing, which is why this is stripped.
+ */
+const routerBase = import.meta.env.BASE_URL.replace(/\/+$/, '');
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <BrowserRouter>
+      {/*
+       * basename strips the deployment prefix from the routing.
+       *
+       * Without it a sub-path install sees the whole prefixed path as the route,
+       * so nothing matched and every page came back blank. BASE_URL comes from
+       * vite's ase, so the two can never disagree.
+       */}
+      <BrowserRouter basename={routerBase}>
         <SettingsProvider>
           <AuthProvider>
             <I18nProvider>

@@ -87,6 +87,27 @@ app.use(express.urlencoded({ extended: true }));
 // Logging
 app.use(morgan('dev'));
 
+// Sub-path support.
+//
+// When APP_BASE_PATH is set, the app is served from a folder rather than owning
+// the domain: /the-team/admin, /the-team/api/... . Express matches routes on the
+// literal path, so without this every /api mount would miss and the frontend
+// would get HTML back where it expected JSON.
+//
+// Stripping the prefix here means every route below is registered exactly once
+// and works under both arrangements. The alternative - a variable in every mount
+// - means twenty call sites that can disagree about the prefix.
+const APP_BASE_PATH = (process.env.APP_BASE_PATH || '').replace(/\/+$/, '');
+
+if (APP_BASE_PATH) {
+  app.use((req, res, next) => {
+    if (req.url === APP_BASE_PATH || req.url.startsWith(APP_BASE_PATH + '/')) {
+      req.url = req.url.slice(APP_BASE_PATH.length) || '/';
+    }
+    next();
+  });
+  console.log(`[server] serving under ${APP_BASE_PATH}`);
+}
 // Routes
 app.use('/api/auth', authRoutes);
   app.use('/api/account', accountRoutes);

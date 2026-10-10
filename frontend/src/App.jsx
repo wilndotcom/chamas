@@ -1,5 +1,5 @@
 import React, { lazy, Suspense, useEffect } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { useI18n } from './i18n/I18nContext';
 import { Inbox } from 'lucide-react';
@@ -81,6 +81,7 @@ function App() {
   const { user, loading, connectionLost } = useAuth();
   const { t } = useI18n();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const isMember = user?.type === 'member';
   const signedIn = Boolean(user);
@@ -91,6 +92,12 @@ function App() {
    * A member who follows an admin link is moved to the member side rather than
    * shown an admin screen they have no rights to, and vice versa. Without this,
    * sharing the wrong link produced a page of empty tiles.
+   *
+   * Done with navigate() rather than history.replaceState(). The raw history API
+   * changes the address bar without telling the router, so the two disagree: the
+   * URL says /admin while the member's screen is still on screen. It also ignores
+   * the router's basename, which on a sub-path install quietly wrote "/member" at
+   * the domain root and dropped the /the-team prefix altogether.
    */
   useEffect(() => {
     if (!signedIn) return;
@@ -98,11 +105,11 @@ function App() {
     const onAdminSide = location.pathname.startsWith(ADMIN);
 
     if (isMember && onAdminSide) {
-      window.history.replaceState(null, '', MEMBER);
+      navigate(MEMBER, { replace: true });
     } else if (!isMember && onMemberSide) {
-      window.history.replaceState(null, '', ADMIN);
+      navigate(ADMIN, { replace: true });
     }
-  }, [signedIn, isMember, location.pathname]);
+  }, [signedIn, isMember, location.pathname, navigate]);
 
   if (loading) {
     return (

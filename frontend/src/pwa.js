@@ -17,8 +17,18 @@ export const registerServiceWorker = () => {
   if (import.meta.env.DEV) return;
 
   const register = () => {
+    /*
+     * Both the script and its scope come from the deployment base.
+     *
+     * A worker can only control paths at or below its own location, so a worker
+     * registered at /sw.js cannot serve a sub-path install - and asking for a
+     * scope it is not allowed to have throws, which was silently downgrading
+     * every sub-path install to "cannot be installed".
+     */
+    const base = import.meta.env.BASE_URL || '/';
+
     navigator.serviceWorker
-      .register('/sw.js', { scope: '/' })
+      .register(`${base}sw.js`, { scope: base })
       .then((registration) => {
         // An update that finished installing while the tab was open is applied
         // straight away rather than on the next cold start, so a fix reaches

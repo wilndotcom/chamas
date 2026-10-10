@@ -918,3 +918,109 @@ curl -I http://localhost:5000/admin/settings # 200
 **The last one is the one to check.** `/admin/settings` is not a file on disk -
 the app routes it. If that returns 404 the SPA fallback is not working, and every
 deep link and shared link in the app breaks on refresh.
+
+---
+
+## 21. Running inside XAMPP, alongside another app
+
+For sharing one Apache with apps like phpNUxBill, so THE TEAM sits in its own
+folder and neither needs its own port.
+
+```
+http://localhost/phpnuxbill/                  the other app
+http://localhost/the-team/admin                administrators
+http://localhost/the-team/member               members
+```
+
+There is one important difference worth being clear about. **phpNUxBill is PHP,
+so Apache runs it directly.** THE TEAM is Node, so Apache has to sit in front
+and forward requests to the Node process. Apache still owns the address; it just
+does not execute the app itself.
+
+### 1. Build for the folder
+
+```bash
+# from the project root
+cd frontend
+set APP_BASE_PATH=/the-team
+npm run build
+```
+
+On Linux or macOS use `export APP_BASE_PATH=/the-team` instead of `set`.
+
+The folder name and the variable have to match. `/the-team` here means the app is
+served from `<host>/the-team/`.
+
+### 2. Tell the backend the same prefix
+
+Add to `backend/.env`:
+
+```
+APP_BASE_PATH=/the-team
+```
+
+The backend answers on `/the-team/api/...` as well as `/api/...`, so the
+frontend finds it whichever build it is talking to.
+
+### 3. Configure Apache
+
+`deploy/apache-vhost.conf` in this project is a working template with the
+`RewriteRule` lines already set to `/the-team`. Copy it to
+`C:\xampp\apache\conf\extra\httpd-vhosts.conf` and make sure `httpd.conf` has
+this line uncommented:
+
+```
+Include conf/extra/httpd-vhosts.conf
+```
+
+Then restart Apache from the XAMPP control panel.
+
+**`mod_rewrite` is required.** XAMPP enables it by default, but if every URL gives
+a 404 it is almost certainly not loaded - check `httpd.conf` for
+`LoadModule rewrite_module`.
+
+### 4. Run the Node process
+
+Apache serves the built files; Node still has to run for the API. Keep it as a
+service so it comes back after a restart:
+
+```bash
+cd the-team
+pm2 start ecosystem.config.js
+pm2 save
+```
+
+### 5. Check it
+
+```bash
+curl -I http://localhost/the-team/admin          # 200
+curl    http://localhost/the-team/api/health     # {"status":"ok"}
+curl -I http://localhost/the-team/admin/settings # 200 - the one that matters
+curl -I http://localhost/the-team/assets/...js   # 200
+```
+
+A 404 on `/the-team/admin/settings` means the SPA fallback is not working, and
+every link anyone shares will break on refresh.
+
+### Changing the folder name
+
+Change it in three places, and all three must agree:
+
+| Where | What |
+|---|---|
+| `frontend` build | `APP_BASE_PATH=/new-name` |
+| `backend/.env` | `APP_BASE_PATH=/new-name` |
+| `deploy/apache-vhost.conf` | `DocumentRoot`, the `RewriteRule` for `/api/`, and `ServerName` |
+
+If they disagree the usual symptom is a page that loads with no styling, because
+the HTML refers to assets the server is not serving from that path.
+
+### Going back to the root of a domain
+
+Rebuild without the variable and remove it from `.env`:
+
+```bash
+cd frontend
+unset APP_BASE_PATH
+npm run build
+```
