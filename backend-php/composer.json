@@ -1,0 +1,25 @@
+{
+    "name": "wlncom/the-team",
+    "description": "THE TEAM - Chama Management System",
+    "type": "project",
+    "license": "SEE LICENSE IN ../LICENSE",
+    "require": {
+        "php": ">=8.1",
+        "ext-pdo": "*",
+        "ext-json": "*",
+        "ext-curl": "*",
+        "ext-openssl": "*",
+        "ext-mbstring": "*",
+        "firebase/php-jwt": "^6.10",
+        "phpmailer/phpmailer": "^6.9",
+        "vlucas/phpdotenv": "^5.6"
+    },
+    "autoload": {
+        "psr-4": {
+            "TheTeam\\": "app/"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    }
+}

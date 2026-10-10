@@ -1,6 +1,11 @@
 # Dependencies
 node_modules/
 
+# Composer dependencies for the PHP port.
+# composer.lock IS committed - the exact versions are what make a deploy
+# reproducible - but vendor/ is restored with "composer install".
+backend-php/vendor/
+
 # Build output
 dist/
 build/
