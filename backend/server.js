@@ -11,6 +11,7 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 
 const authRoutes = require('./routes/auth');
+const accountRoutes = require('./routes/account');
 const adminRoutes = require('./routes/admins');
 const memberRoutes = require('./routes/members');
 const contributionRoutes = require('./routes/contributions');
@@ -88,6 +89,7 @@ app.use(morgan('dev'));
 
 // Routes
 app.use('/api/auth', authRoutes);
+  app.use('/api/account', accountRoutes);
 app.use('/api/admins', adminRoutes);
 app.use('/api/members', memberRoutes);
 app.use('/api/contributions', contributionRoutes);
