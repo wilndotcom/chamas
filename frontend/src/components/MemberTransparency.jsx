@@ -85,15 +85,15 @@ const MemberTransparency = () => {
         {/* What belongs to the members. First, because it is the number that is
             theirs, and the one most easily mistaken for the group's money. */}
         <div className="stat-grid" style={{ marginBottom: 18 }}>
-          <div className="stat-card">
+          <div className="stat-card stat-card--light">
             <span className="stat-label">{t('transp.savingsHeld')}</span>
             <span className="stat-value">{money(held.savings)}</span>
           </div>
-          <div className="stat-card">
+          <div className="stat-card stat-card--light">
             <span className="stat-label">{t('transp.welfareHeld')}</span>
             <span className="stat-value">{money(held.welfare)}</span>
           </div>
-          <div className="stat-card">
+          <div className="stat-card stat-card--light">
             <span className="stat-label">{t('transp.heldTotal')}</span>
             <span className="stat-value">{money(held.total)}</span>
           </div>
@@ -105,15 +105,15 @@ const MemberTransparency = () => {
 
         {/* What the group itself holds. */}
         <div className="stat-grid" style={{ marginBottom: 18 }}>
-          <div className="stat-card">
+          <div className="stat-card stat-card--light">
             <span className="stat-label">{t('transp.cashOnHand')}</span>
             <span className="stat-value">{money(pos.cash_on_hand)}</span>
           </div>
-          <div className="stat-card">
+          <div className="stat-card stat-card--light">
             <span className="stat-label">{t('transp.receivable')}</span>
             <span className="stat-value">{money(pos.receivable_from_members)}</span>
           </div>
-          <div className="stat-card stat-card--primary">
+          <div className="stat-card stat-card--light tile-lead">
             <span className="stat-label">{t('transp.netWorth')}</span>
             <span className="stat-value">{money(pos.net_worth)}</span>
           </div>
@@ -121,15 +121,15 @@ const MemberTransparency = () => {
 
         {/* Income, kept apart from the money above. */}
         <div className="stat-grid" style={{ marginBottom: 8 }}>
-          <div className="stat-card">
+          <div className="stat-card stat-card--light">
             <span className="stat-label">{t('transp.interestCollected')}</span>
             <span className="stat-value">{money(income.interest_collected)}</span>
           </div>
-          <div className="stat-card">
+          <div className="stat-card stat-card--light">
             <span className="stat-label">{t('transp.runningCosts')}</span>
             <span className="stat-value">{money(income.expenses)}</span>
           </div>
-          <div className="stat-card stat-card--primary">
+          <div className="stat-card stat-card--light tile-lead">
             <span className="stat-label">{t('transp.profit')}</span>
             <span className="stat-value">{money(income.profit)}</span>
           </div>

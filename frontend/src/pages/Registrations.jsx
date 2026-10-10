@@ -103,7 +103,7 @@ const Registrations = () => {
       </div>
 
       <div className="stats-grid">
-        <div className="stat-card" style={{ '--c1': '#f59e0b', '--c2': '#ea580c' }}>
+        <div className="stat-card stat-card--light" style={{ borderLeftColor: '#f59e0b' }}>
           <div className="stat-top">
             <div>
               <div className="stat-label">{t('reg.waiting')}</div>
@@ -113,7 +113,7 @@ const Registrations = () => {
             <div className="stat-icon"><Clock size={22} /></div>
           </div>
         </div>
-        <div className="stat-card" style={{ '--c1': '#16a34a', '--c2': '#0d9488' }}>
+        <div className="stat-card stat-card--light" style={{ borderLeftColor: '#16a34a' }}>
           <div className="stat-top">
             <div>
               <div className="stat-label">{t('reg.activeMembers')}</div>
@@ -123,7 +123,7 @@ const Registrations = () => {
             <div className="stat-icon"><UserCheck size={22} /></div>
           </div>
         </div>
-        <div className="stat-card" style={{ '--c1': '#dc2626', '--c2': '#b91c1c' }}>
+        <div className="stat-card stat-card--light" style={{ borderLeftColor: '#dc2626' }}>
           <div className="stat-top">
             <div>
               <div className="stat-label">{t('reg.declined')}</div>

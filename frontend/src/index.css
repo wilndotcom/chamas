@@ -14,6 +14,28 @@
   --accent: #0d9488;
   --accent-2: #0891b2;
 
+  /*
+   * Named status colours.
+   *
+   * These were referenced throughout the stylesheet but never defined, so every
+   * declaration that used them was silently discarded. A var() with no fallback
+   * and no definition invalidates the whole declaration it sits in, which is how
+   * .stat-card ended up with white text on a transparent background - a gradient
+   * ending in var(--teal) failed, the background vanished, and the white text
+   * colour stayed. The Welfare page was unreadable because of a missing variable.
+   *
+   * Defined here so skins can still override them, and so a future reference
+   * resolves instead of failing silently.
+   */
+  --red: #dc2626;
+  --blue: #2563eb;
+  --cyan: #06b6d4;
+  --teal: #0d9488;
+  --amber: #f59e0b;
+  --orange: #ea580c;
+  --indigo: #4f46e5;
+  --green: #16a34a;
+
   /* Sidebar gradient */
   --sidebar-a: #0f3d22;
   --sidebar-b: #0a2c18;
@@ -147,6 +169,20 @@
    ============================================ */
 
 [data-mode='dark'] {
+  /*
+   * Lighter status colours than the light-mode values. #dc2626 on #131c2e is well
+   * under the contrast floor for text; these lift it without changing the hue, so
+   * danger still reads as danger.
+   */
+  --red: #f87171;
+  --blue: #60a5fa;
+  --cyan: #22d3ee;
+  --teal: #2dd4bf;
+  --amber: #fbbf24;
+  --orange: #fb923c;
+  --indigo: #818cf8;
+  --green: #4ade80;
+
   --bg: #0b1220;
   --surface: #131c2e;
   --surface-2: #1a2437;
@@ -183,6 +219,14 @@
 
 [data-mode='dark'] .card,
 [data-mode='dark'] .stat-card--light {
+  background: var(--surface);
+  color: var(--text);
+  /* Left edge carries emphasis on a flat tile. Registrations sets its colour
+     inline; the default keeps the edge consistent everywhere else. */
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--brand);
+  box-shadow: var(--sh-md);
+}
   background: var(--surface);
   border-color: var(--line);
 }
@@ -946,7 +990,12 @@ textarea.mono {
   border-radius: var(--r-lg);
   padding: 20px 22px;
   color: #fff;
-  background: linear-gradient(135deg, var(--c1, var(--brand)), var(--c2, var(--teal)));
+  /* Both stops fall back to --brand rather than to a second named colour. A var()
+   with no definition invalidates the entire declaration, so a missing second
+   colour silently removed the background and left this element's white text on
+   whatever was behind it. Chained fallbacks mean no single missing name can blank
+   the tile. */
+  background: linear-gradient(135deg, var(--c1, var(--brand)), var(--c2, var(--c1, var(--brand))));
   box-shadow: 0 12px 26px -12px var(--c1, var(--brand));
   transition: transform 0.25s ease, box-shadow 0.25s ease;
   animation: rise 0.4s ease both;
@@ -1029,8 +1078,37 @@ textarea.mono {
 .stat-card--light {
   background: var(--surface);
   color: var(--text);
+  /* Left edge carries emphasis on a flat tile. Registrations sets its colour
+     inline; the default keeps the edge consistent everywhere else. */
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--brand);
+  box-shadow: var(--sh-md);
+}
+  background: var(--surface);
+  color: var(--text);
   border: 1px solid var(--line);
   box-shadow: var(--sh-md);
+}
+
+/*
+ * Emphasis for a flat tile, by border rather than by background.
+ *
+ * The gradient tiles carry emphasis in their background, which forces white text
+ * on a saturated colour and puts the small label under the contrast floor. On a
+ * flat tile the accent can live in the edge and the numbers stay dark-on-light.
+ */
+.tile-lead {
+  border-left: 4px solid var(--brand);
+}
+
+.tile-alert {
+  border-left: 4px solid var(--amber);
+}
+
+.stat-card--light .stat-label {
+  /* Kept fully opaque. The gradient tiles set this to 0.9, which on a coloured
+     background pushed it further below the contrast floor for no benefit. */
+  opacity: 1;
 }
 
 .stat-card--light .stat-icon {
@@ -1224,7 +1302,12 @@ textarea.mono {
   display: grid;
   place-items: center;
   color: #fff;
-  background: linear-gradient(135deg, var(--c1, var(--brand)), var(--c2, var(--teal)));
+  /* Both stops fall back to --brand rather than to a second named colour. A var()
+   with no definition invalidates the entire declaration, so a missing second
+   colour silently removed the background and left this element's white text on
+   whatever was behind it. Chained fallbacks mean no single missing name can blank
+   the tile. */
+  background: linear-gradient(135deg, var(--c1, var(--brand)), var(--c2, var(--c1, var(--brand))));
 }
 
 .qa-text strong {
@@ -1285,7 +1368,13 @@ th {
   background: var(--bg);
   font-weight: 700;
   font-size: 11.5px;
-  color: var(--text-soft);
+  /*
+   * --text rather than --text-soft. These headers are 11.5px uppercase, which is
+   * small text and so needs 4.5:1, not the 3:1 that large text is allowed.
+   * --text-soft on --bg measured 4.34:1 - a marginal miss on every table in the
+   * app, and uppercase small print is exactly where marginal legibility matters.
+   */
+  color: var(--text);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   position: sticky;

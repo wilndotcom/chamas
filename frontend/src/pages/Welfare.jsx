@@ -146,11 +146,24 @@ const Welfare = () => {
    * passing them through the money formatter printed "Members who have
    * contributed KES 1", which reads as one shilling rather than one person.
    */
+  /*
+   * Flat tiles, not the gradient ones.
+   *
+   * The gradient .stat-card is white text on the brand colour, and on a saturated
+   * skin like sunset that lands around 3.5:1 - under the 4.5:1 needed for text and
+   * unreadable for the small label. It was worse than that here: the gradient
+   * referenced a colour variable that did not exist, so the background silently
+   * dropped out and left white text on the page itself.
+   *
+   * stat-card--light is what the dashboards already use for this reason: dark
+   * text on a light surface, with the accent carried by a border. Emphasis comes
+   * from that border rather than from washing the numbers out.
+   */
   const tiles = fund ? [
-    { label: t('welfare.fundAvailable'), value: fund.available, tone: 'primary' },
+    { label: t('welfare.fundAvailable'), value: fund.available, lead: true },
     { label: t('welfare.fundIn'), value: fund.total_in },
     { label: t('welfare.fundOut'), value: fund.total_out },
-    { label: t('welfare.pendingRequests'), value: fund.pending_requests, count: true, tone: fund.pending_requests > 0 ? 'warn' : null },
+    { label: t('welfare.pendingRequests'), value: fund.pending_requests, count: true, alert: fund.pending_requests > 0 },
     { label: t('welfare.contributors'), value: fund.contributors, count: true }
   ] : [];
 
@@ -194,7 +207,10 @@ const Welfare = () => {
       {fund && (
         <div className="stat-grid" style={{ marginBottom: 20 }}>
           {tiles.map((tile) => (
-            <div key={tile.label} className={`stat-card ${tile.tone ? 'stat-card--' + tile.tone : ''}`}>
+            <div
+              key={tile.label}
+              className={`stat-card stat-card--light${tile.lead ? ' tile-lead' : ''}${tile.alert ? ' tile-alert' : ''}`}
+            >
               <span className="stat-label">{tile.label}</span>
               <span className="stat-value">{tile.count ? tile.value : money(tile.value)}</span>
             </div>
@@ -214,19 +230,19 @@ const Welfare = () => {
           <div className="card-body">
             <h3 style={{ marginTop: 0 }}>{t('welfare.yourStanding')}</h3>
             <div className="stat-grid">
-              <div className="stat-card">
+              <div className="stat-card stat-card--light">
                 <span className="stat-label">{t('welfare.youContributed')}</span>
                 <span className="stat-value">{money(mine.totals.contributed_all_time)}</span>
               </div>
-              <div className="stat-card">
+              <div className="stat-card stat-card--light">
                 <span className="stat-label">{t('welfare.thisMonth')}</span>
                 <span className="stat-value">{money(mine.totals.contributed_this_month)}</span>
               </div>
-              <div className="stat-card">
+              <div className="stat-card stat-card--light">
                 <span className="stat-label">{t('welfare.youReceived')}</span>
                 <span className="stat-value">{money(mine.totals.received_all_time)}</span>
               </div>
-              <div className="stat-card">
+              <div className="stat-card stat-card--light">
                 <span className="stat-label">{t('welfare.usualAmount')}</span>
                 <span className="stat-value">{money(mine.totals.usual_amount)}</span>
               </div>

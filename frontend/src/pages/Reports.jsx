@@ -60,19 +60,19 @@ const Reports = () => {
       </div>
 
       <div className="stats-grid">
-        <div className="stat-card">
+        <div className="stat-card stat-card--light">
           <div className="stat-value">{money(summary?.total_contributions || 0)}</div>
           <div className="stat-label">{t('dash.totalContributions')}</div>
         </div>
-        <div className="stat-card">
+        <div className="stat-card stat-card--light">
           <div className="stat-value">{money(summary?.total_loans_disbursed || 0)}</div>
           <div className="stat-label">{t('reports.totalLoansDisbursed')}</div>
         </div>
-        <div className="stat-card">
+        <div className="stat-card stat-card--light">
           <div className="stat-value">{money(summary?.total_loans_outstanding || 0)}</div>
           <div className="stat-label">{t('dash.outstandingLoans')}</div>
         </div>
-        <div className="stat-card">
+        <div className="stat-card stat-card--light">
           <div className="stat-value">{money(summary?.total_welfare || 0)}</div>
           <div className="stat-label">{t('dash.welfareFund')}</div>
         </div>
