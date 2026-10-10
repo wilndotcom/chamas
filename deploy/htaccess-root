@@ -1,0 +1,91 @@
+# THE TEAM - Apache rules for XAMPP
+#
+# Drop this in C:\xampp\htdocs\the-team\ and the app runs at
+# http://localhost/the-team with no Apache configuration.
+#
+# This file only affects requests inside the the-team folder. Everything else in
+# htdocs - phpNUxBill, WordPress, anything else you have installed - is
+# untouched, because .htaccess rules apply to the directory they live in and
+# below, never to siblings.
+
+# If mod_rewrite is not enabled in httpd.conf, none of this runs and every page
+# returns a directory listing. The guard below turns that into a message naming
+# the fix rather than a blank 404.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Deep links such as /the-team/admin/settings have no file behind them.
+    # Existing files win, so the hashed assets are served directly instead of
+    # being rewritten into the app shell.
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # The API goes to PHP rather than to the frontend.
+    #
+    # The pattern matches the path with this folder's prefix already stripped,
+    # but the leading slash is still there - /the-team/api/health is matched as
+    # /api/health, not as api/health. Writing ^api without the slash means this
+    # rule never fires, every API call falls through to the rule below, and the
+    # app receives index.html where it expected JSON: a parse error that points
+    # nowhere near the cause.
+    #
+    # The .htaccess flag is required because the target is a file path, not a URL.
+    # Without it Apache redirects the browser and the Authorization header is
+    # dropped on the follow-up, so every request after signing in comes back
+    # logged out.
+    RewriteRule ^/?api(/.*)?$ backend/index.php [QSA,L]
+
+    # Everything else is an app route, handled by React in the browser.
+    # This is what makes a shared or bookmarked link work rather than 404.
+    RewriteRule ^ /index.html [L]
+</IfModule>
+
+<IfModule !mod_rewrite.c>
+    # mod_rewrite is off, so none of the rules above can run. Say so plainly.
+    <Files "index.html">
+        Header set X-The-Team-Error "mod_rewrite is disabled"
+    </Files>
+</IfModule>
+
+# The composer and app directories sit inside the served folder. Without these
+# three lines Apache will happily serve the source of the application - including
+# anything in a .env file - to anyone who asks for it. This is the single
+# most important rule in this file.
+RedirectMatch 404 /\.git
+RedirectMatch 404 ^vendor/
+RedirectMatch 404 ^app/
+RedirectMatch 404 ^routes/
+
+# ---------------------------------------------------------------------------
+# Everything below is optional. Each is wrapped in a module guard on purpose.
+#
+# Apache treats an unknown directive as a fatal error for the WHOLE file, not
+# just that line. An unguarded "Header" on a server without mod_headers takes
+# down the rewrite rules above too, and the symptom is a 500 on every page -
+# which looks like a broken app rather than a missing optional module.
+#
+# Caching and security headers are worth having and are not worth losing the
+# routing over, so each is isolated.
+# ---------------------------------------------------------------------------
+
+<IfModule mod_headers.c>
+    # Hashed filenames: a cache hit is always the right version, so cache hard.
+    <FilesMatch "\.(js|css|png|jpg|svg|woff2?)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+
+    <FilesMatch "\.php$">
+        Header set Cache-Control "no-store, no-cache, must-revalidate"
+    </FilesMatch>
+
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+<IfModule mod_authz_core.c>
+    <FilesMatch "^\.env">
+        Require all denied
+    </FilesMatch>
+</IfModule>

@@ -10,7 +10,44 @@ namespace TheTeam;
  * Every request lands here. Public so Apache or nginx can point at it, which is
  * what makes the app servable from a folder inside XAMPP.
  */
-require_once __DIR__ . '/../vendor/autoload.php';
+/*
+ * The autoloader.
+ *
+ * Checks this directory and its parent, because the backend is laid out
+ * differently in the two places it runs. In a checkout the front controller
+ * sits in public/ with vendor/ one level up; the XAMPP install flattens it so
+ * the whole backend is one folder and vendor/ sits alongside index.php.
+ *
+ * Hardcoding either path breaks the other silently, and the symptom is a blank
+ * page rather than an error, which is why both are tried here.
+ */
+$autoload = is_file(__DIR__ . '/vendor/autoload.php')
+    ? __DIR__ . '/vendor/autoload.php'
+    : __DIR__ . '/../vendor/autoload.php';
+
+if (!is_file($autoload)) {
+    http_response_code(500);
+    header('Content-Type: application/json; charset=utf-8');
+    // Named explicitly, because "the app is broken" with no hint costs more time
+    // than it saves.
+    echo json_encode([
+        'error' => 'Composer dependencies are missing.',
+        'detail' => 'Run "composer install" in the backend-php folder.',
+    ]);
+    exit;
+}
+
+require_once $autoload;
+
+/*
+ * The backend root: the folder holding vendor/, app/ and routes/.
+ *
+ * Derived by going up from the autoloader itself, so it is correct in both
+ * layouts without this file knowing which one it is in. Stripping the
+ * '/vendor/autoload.php' suffix rather than using dirname(), which would leave
+ * 'vendor' itself and then look for vendor/app.
+ */
+$base = substr($autoload, 0, -strlen('/vendor/autoload.php'));
 
 use TheTeam\ApiRoutes;
 use TheTeam\Database;
@@ -24,26 +61,26 @@ use TheTeam\Router;
 /*
  * Which .env to read.
  *
- * This reads backend/.env, the file the Node app already uses, rather than a
- * second copy. A duplicated config is the most reliable way to run the two
- * ports against different databases - and that mistake surfaces as missing data
- * or a login that mysteriously fails, long after the cause. Sharing one file
- * also means rotating JWT_SECRET signs out both, which is what you want: a token
- * from one must not silently work on the other after a rotation.
+ * The .env beside this file always wins. When running from a checkout that is
+ * backend-php/.env; in a XAMPP install it is the one the deploy script wrote into
+ * backend/, and that one is the only one present.
  *
- * A local backend-php/.env still wins if it exists, for running against a
- * different database without touching the Node app.
+ * A parent .env is read as a fallback so a checkout can pick up backend/.env,
+ * the file the Node app uses. Sharing one file between the two is deliberate: a
+ * duplicated config is the most reliable way to run them against different
+ * databases, and that surfaces much later as missing data or a login that
+ * mysteriously fails. Sharing also means rotating JWT_SECRET signs out both,
+ * which is what you want - a token from one must not silently keep working on
+ * the other after a rotation.
  */
-$projectRoot = dirname(__DIR__, 2);
-$sharedEnv = $projectRoot . '/backend';
-$ownEnv = dirname(__DIR__);
+$ownEnv = __DIR__;
 
 // Before anything logs, so the startup banner reaches the terminal when there
 // is one. Under Apache there is no terminal, and it goes to the error log.
 Log::useStderr(PHP_SAPI === 'cli' || PHP_SAPI === 'cli-server');
 
-Env::load($sharedEnv);
-Env::load($ownEnv);
+Env::load(__DIR__);
+Env::load(dirname(__DIR__));
 Env::finish();
 
 /*
@@ -59,6 +96,24 @@ Env::finish();
  * stack trace names files, line numbers and table names.
  */
 $isProduction = Env::get('NODE_ENV', 'development') === 'production';
+
+/*
+ * Stop PHP writing its own error text into the response body.
+ *
+ * The handler below logs warnings and returns true, which tells PHP the warning
+ * was handled - but only if display_errors is off. With it on, a warning is
+ * still printed, and it arrives in the middle of the JSON the frontend is
+ * trying to parse. The result is a parse error pointing at a `<br />` tag
+ * thousands of characters from the real cause.
+ *
+ * This is set before anything can emit a warning, so it is in force for the
+ * rest of the request. @ is deliberately not used instead: it suppresses the
+ * warning from the log as well, which is where the evidence of the bug would be.
+ */
+@ini_set('display_errors', '0');
+@ini_set('display_startup_errors', '0');
+// Log them anyway - suppressing them from the user is the point, not losing them.
+@ini_set('log_errors', '1');
 
 set_error_handler(static function (int $severity, string $message, string $file, int $line): bool {
     if ((error_reporting() & $severity) === 0) {
@@ -144,8 +199,11 @@ if ($basePath !== '' && ($path === $basePath || str_starts_with($path, $basePath
  * here with APCu where available and a file otherwise; the exact mechanism does
  * not matter, only that login and password reset stay limited, because those are
  * the endpoints worth guessing at.
+ *
+ * $base is resolved the same way as the autoloader, because this file is loaded
+ * directly rather than through the autoloader and cannot rely on it.
  */
-require_once __DIR__ . '/../app/RateLimit.php';
+require_once $base . '/app/RateLimit.php';
 RateLimit::init(sys_get_temp_dir());
 
 $router = new Router();
@@ -177,10 +235,10 @@ $router->get('/api/health', function () {
  * quietly register nothing - and every endpoint would 404 while /api/health,
  * registered above, kept answering "ok".
  */
-$registerApi = require __DIR__ . '/../routes/api.php';
+$registerApi = require $base . '/routes/api.php';
 $registerApi($router);
 
-$registerWeb = require __DIR__ . '/../routes/web.php';
+$registerWeb = require $base . '/routes/web.php';
 $registerWeb($router);
 
 $router->dispatch($method, $path);

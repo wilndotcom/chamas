@@ -1,0 +1,34 @@
+# THE TEAM - PHP backend rules
+#
+# Everything here is addressed as /the-team/backend/... but the browser only ever
+# sees /the-team/api/... - the rewrite in the parent folder is what forwards it.
+# This file exists so that PHP files are executed rather than shown as text,
+# which would otherwise hand out the source of the application.
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Route the bare /the-team/backend/ to the front controller, so the app still
+    # works if someone follows this path by accident.
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^$ index.php [L]
+</IfModule>
+
+# Never serve the vendor directory or the application source directly. Apache
+# will execute .php files here, but a missed rule would expose the code, and the
+# cost of getting this wrong is publishing the application's internals.
+#
+# The .env file is the important one: it holds the database password and the
+# token signing secret. Anyone who reads the secret can sign a token for any
+# administrator, which is not a compromise of one account but of all of them.
+<IfModule mod_authz_core.c>
+    <FilesMatch "\.(env|ini|log|sql|lock)$">
+        Require all denied
+    </FilesMatch>
+
+    <FilesMatch "^composer\.(json|lock)$">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+
+DirectoryIndex index.php

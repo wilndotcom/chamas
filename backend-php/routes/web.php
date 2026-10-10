@@ -18,7 +18,18 @@ use TheTeam\Response;
 use TheTeam\Router;
 
 return function (Router $router): void {
-    $dist = dirname(__DIR__, 2) . '/frontend/dist';
+    /*
+     * Where the built frontend is.
+     *
+     * WEB_ROOT is set by the deploy script on XAMPP, where the two halves sit
+     * in one folder. Without it, falls back to the checkout layout - this file
+     * is in backend-php/routes/, so the frontend is two levels up.
+     *
+     * Configurable rather than hardcoded because the alternative is an absolute
+     * path baked into the source, which is correct on exactly one machine and
+     * fails silently everywhere else.
+     */
+    $dist = rtrim(\TheTeam\Env::get('WEB_ROOT', dirname(__DIR__, 2) . '/frontend/dist'), '/');
 
     $router->get('/', function (Request $r) use ($dist) {
         if (!is_file($dist . '/index.html')) {
