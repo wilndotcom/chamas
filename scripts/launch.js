@@ -235,21 +235,50 @@ const main = async () => {
  * meant every controller edit needed a manual restart - during development, at
  * least, that reload is the whole point of having nodemon.
  */
+/*
+ * Install mode: build first, then let the backend serve it.
+ *
+ * The backend serves the built frontend itself, so install mode needs no second
+ * server and no port in any URL. Development keeps Vite, because it needs
+ * hot reloading and has no business behind a build step.
+ *
+ * Building before starting the backend matters: the backend decides whether to
+ * serve the app from disk at startup, so a build that finished after it booted
+ * would be ignored until the next restart.
+ */
+if (installMode) {
+  say('');
+  say(paint(C.yellow, '  build'));
+  say(paint(C.dim, '  building the frontend, this takes a moment'));
+  await runNpmToCompletion(['run', 'build'], frontend);
+}
+
 say(paint(C.dim, `  starting the backend on :${BACKEND_PORT}`));
-start('api', runNpm(['run', 'dev'], backend), C.green);
+start('api', runNpm(['run', installMode ? 'start' : 'dev'], backend), C.green);
 await waitForPort(BACKEND_PORT, 'The backend');
 
-  if (installMode) {
-    // Built output, because the dev server has no service worker and so cannot be
-    // installed. Built here rather than assumed, so a stale dist cannot make the
-    // install fail for a reason that has nothing to do with the browser.
-    say('');
-    say(paint(C.yellow, '  build'));
-    say(paint(C.dim, '  building the frontend, this takes a moment'));
-    await runNpmToCompletion(['run', 'build'], frontend);
-  }
+if (installMode) {
+  // One server, one port, and the port is the only part of the URL that is not
+  // a real path. See DEPLOYMENT.md for putting it behind a domain on :80.
+  const url = `http://localhost:${BACKEND_PORT}`;
 
-  const script = installMode ? 'preview' : 'dev';
+  say('');
+  say(`  ${paint(C.green, 'Ready.')}`);
+  say(`  ${paint(C.bold, url + '/admin')}   ${paint(C.dim, 'administrators')}`);
+  say(`  ${paint(C.bold, url + '/member')}  ${paint(C.dim, 'members')}`);
+  say('');
+  say(paint(C.dim, '  The backend serves the app as well as the API, so there is'));
+  say(paint(C.dim, '  no second server and no port in any link you share.'));
+  say('');
+  say(paint(C.yellow, '  To put it on your desktop'));
+  say(`    1. Open ${url}/admin`);
+  say('    2. Click "Install App" at the bottom of the left sidebar,');
+  say('       or use the install icon in the address bar.');
+  say('');
+  say(paint(C.dim, '    To lose the port entirely, put it behind Apache or nginx on'));
+  say(paint(C.dim, '    :80. A ready-made config is in DEPLOYMENT.md.'));
+} else {
+  const script = 'dev';
   say('');
   say(paint(C.dim, `  starting the frontend on :${FRONTEND_PORT}`));
   start('app', runNpm(['run', script], frontend), C.cyan);
@@ -259,22 +288,11 @@ await waitForPort(BACKEND_PORT, 'The backend');
 
   say('');
   say(`  ${paint(C.green, 'Ready.')}`);
-  say(`  ${paint(C.bold, url)}`);
+  say(`  ${paint(C.bold, url + '/admin')}`);
   say('');
-
-  if (installMode) {
-    say(paint(C.yellow, '  To put it on your desktop'));
-    say(`    1. Open ${url}   ${paint(C.dim, '(not :3000)')}`);
-    say('    2. Click "Install App" at the bottom of the left sidebar,');
-    say('       or use the install icon in the address bar.');
-    say('');
-    say(paint(C.dim, '    Installing from :3000 instead does nothing at all. Chrome'));
-    say(paint(C.dim, '    refuses to install without a service worker, and the dev'));
-    say(paint(C.dim, '    server skips it on purpose.'));
-  } else {
-    say(paint(C.dim, '    Installing from this build will not work. Run'));
-    say(`    ${paint(C.bold, 'npm run install')} ${paint(C.dim, 'for that.')}`);
-  }
+  say(paint(C.dim, '    Installing from this build will not work. Run'));
+  say(`    ${paint(C.bold, 'npm run install')} ${paint(C.dim, 'for that.')}`);
+}
   say('');
 };
 

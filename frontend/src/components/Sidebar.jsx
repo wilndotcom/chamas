@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import { adminPath, memberPath } from '../routes';
 import { useAuth } from '../context/AuthContext';
 import { useFormat } from '../context/FormatContext';
 import { useI18n } from '../i18n/I18nContext';
@@ -257,7 +258,13 @@ const Sidebar = ({
                   ) : (
                     <NavLink
                       key={item.path}
-                      to={item.path}
+                      /*
+                       * The group tables above hold bare paths, shared by both
+                       * portals. The prefix is applied here, once, so the two
+                       * menus stay defined in the same shape and no link can
+                       * escape the portal it belongs to.
+                       */
+                      to={isMember ? memberPath(item.path) : adminPath(item.path)}
                       end={item.path === '/'}
                       onClick={onNavigate}
                       title={collapsed ? t(item.labelKey) : undefined}

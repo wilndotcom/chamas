@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { memberPath } from '../routes';
 import {
   Coins,
   Banknote,
@@ -100,7 +101,7 @@ const MemberDashboard = () => {
           <p className="page-sub">{t('dash.summaryAtGlance')}</p>
         </div>
         <div className="page-actions">
-          <button className="btn btn-primary" onClick={() => navigate('/contributions')}>
+          <button className="btn btn-primary" onClick={() => navigate(memberPath('contributions'))}>
             <Smartphone size={17} /> {t('dash.payWithMpesa')}
           </button>
         </div>
@@ -163,7 +164,7 @@ const MemberDashboard = () => {
               </h3>
               <p className="card-sub">{t('dash.lastFewContributions')}</p>
             </div>
-            <button className="btn btn-sm btn-secondary" onClick={() => navigate('/contributions')}>
+            <button className="btn btn-sm btn-secondary" onClick={() => navigate(memberPath('contributions'))}>
               {t('common.viewAll')}
             </button>
           </div>
@@ -219,7 +220,7 @@ const MemberDashboard = () => {
               </p>
             </div>
             {hasLoan && (
-              <button className="btn btn-sm btn-primary" onClick={() => navigate('/loans')}>
+              <button className="btn btn-sm btn-primary" onClick={() => navigate(memberPath('loans'))}>
                 {t('dash.goToMyLoans')}
               </button>
             )}
@@ -320,7 +321,7 @@ const MemberDashboard = () => {
                   )}
             </p>
           </div>
-          <button className="btn btn-sm btn-primary" onClick={() => navigate('/loans')}>
+          <button className="btn btn-sm btn-primary" onClick={() => navigate(memberPath('loans'))}>
             {t('dash.applyForLoan')}
           </button>
         </div>
@@ -392,28 +393,28 @@ const MemberDashboard = () => {
             title={t('dash.payViaMpesa')}
             subtitle={t('dash.promptOnPhone')}
             tone="green"
-            onClick={() => navigate('/contributions')}
+            onClick={() => navigate(memberPath('contributions'))}
           />
           <QuickAction
             icon={Banknote}
             title={t('loans.apply')}
             subtitle={t('dash.borrowFromGroup')}
             tone="purple"
-            onClick={() => navigate('/loans')}
+            onClick={() => navigate(memberPath('loans'))}
           />
           <QuickAction
             icon={Heart}
             title={t('welfare.request')}
             subtitle={t('dash.helpInHardTimes')}
             tone="pink"
-            onClick={() => navigate('/welfare')}
+            onClick={() => navigate(memberPath('welfare'))}
           />
           <QuickAction
             icon={Coins}
             title={t('dash.myStatements')}
             subtitle={t('dash.fullHistory')}
             tone="blue"
-            onClick={() => navigate('/contributions')}
+            onClick={() => navigate(memberPath('contributions'))}
           />
         </div>
       </div>

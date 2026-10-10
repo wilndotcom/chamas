@@ -120,13 +120,28 @@ export const AuthProvider = ({ children }) => {
       const { data } = await axios.post(
         '/api/auth/refresh',
         {},
-        { headers: { Authorization: `Bearer ${current}` } }
+        { headers: { Authorization: Bearer  } }
       );
-      if (data?.token) {
-        localStorage.setItem('token', data.token);
-        axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
-        setToken(data.token);
-      }
+      if (!data?.token) return;
+
+      /*
+       * Only write back if this tab is still the one holding the session.
+       *
+       * Two tabs share one localStorage, so a background renewal in one would
+       * overwrite a session the other had just started. That is not
+       * theoretical: a super admin who opens the app in two tabs and then
+       * impersonates a member has the original tab's renewal fire a moment later
+       * and write the admin token straight over the impersonated one, silently
+       * ending the session they were in the middle of using.
+       *
+       * If the stored token has moved on, another tab owns the session now and
+       * this one gets out of the way rather than fighting it for it.
+       */
+      if (localStorage.getItem('token') !== current) return;
+
+      localStorage.setItem('token', data.token);
+      axios.defaults.headers.common['Authorization'] = Bearer ;
+      setToken(data.token);
     } catch {
       // Nothing to do. The current token remains valid until it expires.
     }

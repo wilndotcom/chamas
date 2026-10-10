@@ -110,12 +110,25 @@ A comprehensive Chama (savings and credit group) management system with admin an
    npm install
    ```
 
-3. Start the development server:
+3. Start the app:
    ```bash
-   npm run dev
+   npm run dev       # for working on it
+   npm run install   # to use it (builds, then serves on one port)
    ```
 
-4. Open http://localhost:3000 in your browser
+4. Open it in your browser:
+
+   | Command | Address | Notes |
+   |---|---|---|
+   | `npm run dev` | http://localhost:3000/admin | Hot reloading. Cannot be installed as an app. |
+   | `npm run install` | http://localhost:5000/admin | Built and served by the backend, one port, installable. |
+
+   The two portals are separate paths: `/admin` for administrators and
+   `/member` for members. Signing in takes you to the right one.
+
+   To lose the port entirely and have a real address such as
+   `https://yourchama.co.ke/admin`, see **[DEPLOYMENT.md](DEPLOYMENT.md)**.
+   It is one config file, and nothing in the app changes.
 
 ### 4. M-Pesa Configuration
 

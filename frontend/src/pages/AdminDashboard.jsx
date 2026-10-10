@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { adminPath } from '../routes';
 import toast from 'react-hot-toast';
 import {
   Wallet,
@@ -147,7 +148,7 @@ const AdminDashboard = () => {
         </div>
         {can('record_contributions') && (
           <div className="page-actions">
-            <button className="btn btn-primary" onClick={() => navigate('/contributions')}>
+            <button className="btn btn-primary" onClick={() => navigate(adminPath('contributions'))}>
               <Plus size={17} /> {t('contrib.record')}
             </button>
           </div>
@@ -262,7 +263,7 @@ const AdminDashboard = () => {
                 </h3>
                 <p className="card-sub">{t('dash.whereMoneyWent')}</p>
               </div>
-              <button className="btn btn-sm btn-secondary" onClick={() => navigate('/cashbook')}>
+              <button className="btn btn-sm btn-secondary" onClick={() => navigate(adminPath('cashbook'))}>
                 {t('nav.cashbook')} <ArrowRight size={13} />
               </button>
             </div>
@@ -438,7 +439,7 @@ const AdminDashboard = () => {
                     })}
                   </span>
                 </div>
-                <button className="btn btn-sm btn-primary" onClick={() => navigate('/loans')}>
+                <button className="btn btn-sm btn-primary" onClick={() => navigate(adminPath('loans'))}>
                   {t('reg.review')}
                 </button>
               </div>
@@ -458,7 +459,7 @@ const AdminDashboard = () => {
                     {pendingRegs.length > 3 ? t('dash.andMore') : ''}
                   </span>
                 </div>
-                <button className="btn btn-sm btn-primary" onClick={() => navigate('/registrations')}>
+                <button className="btn btn-sm btn-primary" onClick={() => navigate(adminPath('registrations'))}>
                   {t('reg.review')}
                 </button>
               </div>
@@ -512,7 +513,7 @@ const AdminDashboard = () => {
               {risk.members.length > 5 && (
                 <p className="behind-more">
                   {t('dash.andCountMore', { n: risk.members.length - 5 })}{' '}
-                  <button className="link-btn" onClick={() => navigate('/contributions')}>
+                  <button className="link-btn" onClick={() => navigate(adminPath('contributions'))}>
                     {t('dash.seeEveryone')}
                   </button>
                 </p>
@@ -534,14 +535,14 @@ const AdminDashboard = () => {
               title={t('contrib.record')}
               subtitle={t('dash.cashOrMpesa')}
               tone="green"
-              onClick={() => navigate('/contributions')}
+              onClick={() => navigate(adminPath('contributions'))}
             />
             <QuickAction
               icon={Users}
               title={t('nav.members')}
               subtitle={t('dash.addOrManage')}
               tone="blue"
-              onClick={() => navigate('/members')}
+              onClick={() => navigate(adminPath('members'))}
             />
             {can('view_reports') && (
               <QuickAction
@@ -549,7 +550,7 @@ const AdminDashboard = () => {
                 title={t('nav.cashbook')}
                 subtitle={t('dash.moneyInOut')}
                 tone="orange"
-                onClick={() => navigate('/cashbook')}
+                onClick={() => navigate(adminPath('cashbook'))}
               />
             )}
             {can('manage_welfare') && (
@@ -558,7 +559,7 @@ const AdminDashboard = () => {
                 title={t('nav.welfare')}
                 subtitle={t('dash.requestsOnly')}
                 tone="pink"
-                onClick={() => navigate('/welfare')}
+                onClick={() => navigate(adminPath('welfare'))}
               />
             )}
             {can('approve_loans') && (
@@ -571,7 +572,7 @@ const AdminDashboard = () => {
                     : t('dash.allReviewed')
                 }
                 tone="purple"
-                onClick={() => navigate('/loans')}
+                onClick={() => navigate(adminPath('loans'))}
               />
             )}
             {can('send_notifications') && (
@@ -580,7 +581,7 @@ const AdminDashboard = () => {
                 title={t('dash.notify')}
                 subtitle={t('dash.messageMembers')}
                 tone="cyan"
-                onClick={() => navigate('/notifications')}
+                onClick={() => navigate(adminPath('notifications'))}
               />
             )}
           </div>

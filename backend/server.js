@@ -121,6 +121,76 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+/*
+ * ---------------------------------------------------------------------------
+ * The app itself
+ * ---------------------------------------------------------------------------
+ * Serving the built frontend from here is what lets the whole thing run on one
+ * port with no proxy to configure: /admin and /member are ordinary paths on the
+ * same origin as the API, so there is no port in any URL a member ever sees,
+ * and nothing to get wrong when this is hosted.
+ *
+ * Only when a build exists. During `npm run dev` the frontend is served by Vite
+ * and this block is skipped, so there is no chance of the API quietly serving an
+ * old build over the top of the live one.
+ */
+const path = require('path');
+const fs = require('fs');
+
+const frontendDist = path.join(__dirname, '..', 'frontend', 'dist');
+
+if (fs.existsSync(path.join(frontendDist, 'index.html'))) {
+  /*
+   * Hashed asset filenames mean a cache hit is always the right version, so these
+   * can be cached hard. index.html is explicitly excluded below.
+   */
+  app.use(
+    express.static(frontendDist, {
+      index: false,
+      maxAge: '365d',
+      immutable: true,
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('index.html')) {
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        }
+        // The service worker has to be re-fetched to take effect, so it is held
+        // to the same rule as index.html. A cached worker keeps serving an old
+        // shell that references assets which no longer exist.
+        if (filePath.endsWith('sw.js')) {
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        }
+      }
+    })
+  );
+
+  /*
+   * The SPA fallback.
+   *
+   * Without this, reloading /admin/settings - or opening a link pasted into a
+   * WhatsApp group - returns 404, because the server genuinely has no such file.
+   * Any path that is not a real file is answered with the shell and the client
+   * router sorts it out.
+   *
+   * /api is excluded, and this is the part that matters: an unknown API route has
+   * to keep answering 404 in JSON. Falling through to index.html would hand a
+   * caller an HTML page where it expected an error, and a frontend fetch would
+   * try to parse it.
+   */
+  app.get(/.*/, (req, res, next) => {
+    if (req.path.startsWith('/api/') || req.path === '/api') {
+      return next();
+    }
+    res.sendFile(path.join(frontendDist, 'index.html'));
+  });
+
+  console.log(`[server] serving the built app from ${frontendDist}`);
+} else {
+  console.log(
+    '[server] no frontend build found - serving the API only. ' +
+      'Run `npm run build` in frontend/ to serve the app from this port.'
+  );
+}
+
 // Error handling
 app.use((err, req, res, next) => {
   console.error(err.stack);

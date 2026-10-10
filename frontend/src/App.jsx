@@ -1,5 +1,5 @@
-import React, { lazy, Suspense } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import React, { lazy, Suspense, useEffect } from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { useI18n } from './i18n/I18nContext';
 import { Inbox } from 'lucide-react';
@@ -39,9 +39,70 @@ const Page = ({ children }) => (
   </Suspense>
 );
 
+/*
+ * Where each portal lives.
+ *
+ * Both portals share one origin and are told apart by the first path segment:
+ *
+ *     /admin          the management side
+ *     /admin/members  a page inside it
+ *     /member         the member side
+ *     /login          signing in
+ *
+ * Without the prefixes every screen shared one flat set of paths, which made the
+ * two portals impossible to bookmark separately and gave no way to tell an admin
+ * link from a member link. It also meant there was no obvious path a reverse
+ * proxy could hand the whole app off on.
+ */
+const ADMIN = '/admin';
+const MEMBER = '/member';
+
+/*
+ * Old flat paths, kept working.
+ *
+ * These were live for long enough that people have them in bookmarks, on a
+ * printed agenda, or pasted into a WhatsApp group. Redirecting rather than
+ * removing means an old link lands on the right page instead of a 404.
+ */
+const LEGACY_REDIRECTS = [
+  ['/dashboard', `${ADMIN}/`],
+  ['/members', `${ADMIN}/members`],
+  ['/registrations', `${ADMIN}/registrations`],
+  ['/cashbook', `${ADMIN}/cashbook`],
+  ['/reports', `${ADMIN}/reports`],
+  ['/settings', `${ADMIN}/settings`],
+  ['/admins', `${ADMIN}/admins`],
+  ['/portal-switch', `${ADMIN}/portal-switch`],
+  // Roles & Rights moved into Settings; both spellings keep working.
+  ['/roles', `${ADMIN}/settings`]
+];
+
 function App() {
   const { user, loading, connectionLost } = useAuth();
   const { t } = useI18n();
+  const location = useLocation();
+
+  const isMember = user?.type === 'member';
+  const signedIn = Boolean(user);
+
+  /*
+   * Sends each person to their own portal.
+   *
+   * A member who follows an admin link is moved to the member side rather than
+   * shown an admin screen they have no rights to, and vice versa. Without this,
+   * sharing the wrong link produced a page of empty tiles.
+   */
+  useEffect(() => {
+    if (!signedIn) return;
+    const onMemberSide = location.pathname.startsWith(MEMBER);
+    const onAdminSide = location.pathname.startsWith(ADMIN);
+
+    if (isMember && onAdminSide) {
+      window.history.replaceState(null, '', MEMBER);
+    } else if (!isMember && onMemberSide) {
+      window.history.replaceState(null, '', ADMIN);
+    }
+  }, [signedIn, isMember, location.pathname]);
 
   if (loading) {
     return (
@@ -56,18 +117,21 @@ function App() {
    * Still signed in, server unreachable.
    *
    * Shown instead of the login screen, because the session is intact and the
-   * alternative - bouncing to login - is exactly what made people believe they
-   * had been signed out by a blip they never caused. Retries on its own, so the
-   * app recovers by itself once the server is back.
+   * alternative - bouncing to login - is what made people believe they had been
+   * signed out by a blip they never caused. Retries on its own.
    */
   if (connectionLost && !user) {
     return <ConnectionLostNotice />;
   }
 
-  // The login screen has no app shell, so it carries the footer itself.
-  // All three Login states (login, register, submitted) sit inside this, which
-  // is why it is wrapped here rather than inside the Login component.
+  // Signed out: the login screen carries its own footer, since there is no shell.
+  // It is reachable at /login and at either portal's root, so every entry point
+  // lands somewhere sensible.
   if (!user) {
+    const wantsPortal = location.pathname.startsWith(ADMIN) || location.pathname.startsWith(MEMBER);
+    if (!wantsPortal && location.pathname !== '/login') {
+      return <Navigate to="/login" replace />;
+    }
     return (
       <div className="login-page">
         <Login />
@@ -76,44 +140,62 @@ function App() {
     );
   }
 
-  const isMember = user?.type === 'member';
-
-  if (isMember) {
-    return (
-      <Layout>
-        <Routes>
-          <Route path="/" element={<Page><MemberDashboard /></Page>} />
-          <Route path="/contributions" element={<Page><Contributions /></Page>} />
-          <Route path="/loans" element={<Page><Loans /></Page>} />
-          <Route path="/welfare" element={<Page><Welfare /></Page>} />
-          <Route path="/notifications" element={<Page><Notifications /></Page>} />
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
-      </Layout>
-    );
-  }
-
   return (
-    <Layout>
-      <Routes>
-        <Route path="/" element={<Page><AdminDashboard /></Page>} />
-        <Route path="/members" element={<Page><Members /></Page>} />
-        <Route path="/registrations" element={<Page><Registrations /></Page>} />
-        {/* Roles & Rights moved into Settings. Old links and bookmarks still work. */}
-        <Route path="/roles" element={<Navigate to="/settings" replace />} />
-        <Route path="/contributions" element={<Page><Contributions /></Page>} />
-        <Route path="/loans" element={<Page><Loans /></Page>} />
-        <Route path="/welfare" element={<Page><Welfare /></Page>} />
-        <Route path="/cashbook" element={<Page><CashBook /></Page>} />
-        <Route path="/reports" element={<Page><Reports /></Page>} />
-        <Route path="/notifications" element={<Page><Notifications /></Page>} />
-        <Route path="/settings" element={<Page><Settings /></Page>} />
-        <Route path="/admins" element={<Page><AdminManagement /></Page>} />
-        <Route path="/portal-switch" element={<Page><Impersonate /></Page>} />
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
-    </Layout>
+    <Routes>
+      {/* The root sends each person to their own side. */}
+      <Route path="/" element={<Navigate to={isMember ? MEMBER : ADMIN} replace />} />
+
+      {/* ---------------------------------------------------------- member --- */}
+      <Route path="/member" element={<Layout><MemberRoutes isMember /></Layout>} />
+      <Route path="/member/*" element={<Layout><MemberRoutes isMember /></Layout>} />
+
+      {/* ----------------------------------------------------------- admin --- */}
+      <Route path="/admin" element={<Layout><AdminRoutes /></Layout>} />
+      <Route path="/admin/*" element={<Layout><AdminRoutes /></Layout>} />
+
+      {/* Signing out, or landing on a link meant for the other portal. */}
+      <Route path="/login" element={<Navigate to={isMember ? MEMBER : ADMIN} replace />} />
+
+      {/* Old flat links, so nothing a member was already given stops working. */}
+      {LEGACY_REDIRECTS.map(([from, to]) => (
+        <Route key={from} path={from} element={<Navigate to={to} replace />} />
+      ))}
+
+      {/* Anything unrecognised goes to the right portal rather than a dead end. */}
+      <Route path="*" element={<Navigate to={isMember ? MEMBER : ADMIN} replace />} />
+    </Routes>
   );
 }
+
+/** The member portal's own routes. */
+const MemberRoutes = () => (
+  <Routes>
+    <Route path="/" element={<Page><MemberDashboard /></Page>} />
+    <Route path="contributions" element={<Page><Contributions /></Page>} />
+    <Route path="loans" element={<Page><Loans /></Page>} />
+    <Route path="welfare" element={<Page><Welfare /></Page>} />
+    <Route path="notifications" element={<Page><Notifications /></Page>} />
+    <Route path="*" element={<Navigate to="/member" replace />} />
+  </Routes>
+);
+
+/** The admin portal's own routes. */
+const AdminRoutes = () => (
+  <Routes>
+    <Route path="/" element={<Page><AdminDashboard /></Page>} />
+    <Route path="members" element={<Page><Members /></Page>} />
+    <Route path="registrations" element={<Page><Registrations /></Page>} />
+    <Route path="contributions" element={<Page><Contributions /></Page>} />
+    <Route path="loans" element={<Page><Loans /></Page>} />
+    <Route path="welfare" element={<Page><Welfare /></Page>} />
+    <Route path="cashbook" element={<Page><CashBook /></Page>} />
+    <Route path="reports" element={<Page><Reports /></Page>} />
+    <Route path="notifications" element={<Page><Notifications /></Page>} />
+    <Route path="settings" element={<Page><Settings /></Page>} />
+    <Route path="admins" element={<Page><AdminManagement /></Page>} />
+    <Route path="portal-switch" element={<Page><Impersonate /></Page>} />
+    <Route path="*" element={<Navigate to="/admin" replace />} />
+  </Routes>
+);
 
 export default App;
