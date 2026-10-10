@@ -16,6 +16,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import StatCard, { QuickAction } from '../components/StatCard';
+import MemberTransparency from '../components/MemberTransparency';
 import { useFormat } from '../context/FormatContext';
 import { useI18n } from '../i18n/I18nContext';
 
@@ -378,6 +379,8 @@ const MemberDashboard = () => {
           </div>
         )}
       </div>
+
+      <MemberTransparency />
 
       <div className="card">
         <div className="card-header">

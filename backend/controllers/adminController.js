@@ -50,12 +50,60 @@ const createAdmin = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);
-    const [result] = await pool.execute(
-      'INSERT INTO admins (full_name, username, email, phone, password_hash, role_id) VALUES (?, ?, ?, ?, ?, ?)',
-      [full_name, cleanUsername, email, phone || null, hashedPassword, role_id]
-    );
 
-    res.status(201).json({ success: true, admin_id: result.insertId, message: 'Admin created successfully.' });
+    /*
+     * An admin is also a member, so the two records are created together.
+     *
+     * Without this an admin could not contribute, borrow, or appear in any member
+     * list, which is not how a chama works: the chair and treasurer save like
+     * everyone else. Their member row reuses the same password hash, so they sign
+     * in to the member portal with the credentials they already have rather than
+     * being handed a second set.
+     *
+     * Phone and email are only claimed when no member already holds them, because
+     * both are UNIQUE and a real member may well have registered with the same
+     * number the admin uses. When they collide the member row is still created
+     * with a generated number, so the link is never missing.
+     */
+    const conn = await pool.getConnection();
+    let adminId;
+    try {
+      await conn.beginTransaction();
+
+      const [result] = await conn.execute(
+        'INSERT INTO admins (full_name, username, email, phone, password_hash, role_id) VALUES (?, ?, ?, ?, ?, ?)',
+        [full_name, cleanUsername, email, phone || null, hashedPassword, role_id]
+      );
+      adminId = result.insertId;
+
+      const phoneTaken = phone
+        ? (await conn.execute('SELECT 1 FROM members WHERE phone = ?', [phone]))[0].length > 0
+        : true;
+      const emailTaken = (await conn.execute('SELECT 1 FROM members WHERE email = ?', [email]))[0].length > 0;
+
+      const memberPhone = phoneTaken ? `9000000${String(adminId).padStart(4, '0')}` : phone;
+
+      const [member] = await conn.execute(
+        `INSERT INTO members (full_name, email, phone, password_hash, status, joined_date)
+         VALUES (?, ?, ?, ?, 'active', CURDATE())`,
+        [full_name, emailTaken ? null : email, memberPhone, hashedPassword]
+      );
+
+      await conn.execute('UPDATE admins SET member_id = ? WHERE id = ?', [member.insertId, adminId]);
+
+      await conn.commit();
+    } catch (error) {
+      await conn.rollback();
+      throw error;
+    } finally {
+      conn.release();
+    }
+
+    res.status(201).json({
+      success: true,
+      admin_id: adminId,
+      message: 'Admin created successfully.'
+    });
   } catch (error) {
     console.error('Create admin error:', error);
     res.status(500).json({ error: 'Failed to create admin.' });

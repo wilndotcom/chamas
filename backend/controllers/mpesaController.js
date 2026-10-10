@@ -1,6 +1,111 @@
 const axios = require('axios');
 const pool = require('../config/database');
 const { getMpesaConfig, isConfigured, baseUrl } = require('../utils/mpesaConfig');
+const { dispatch, normalisePhone } = require('../utils/notifier');
+
+/**
+ * Converts a phone number to the format members are stored in.
+ *
+ * M-Pesa sends PhoneNumber as 254712345678. Members are stored as 0712345678.
+ * Without this conversion the lookup never matches and the payment is recorded
+ * against no one, which is the difference between money landing in a member's
+ * balance and money vanishing into an unmatched transaction.
+ */
+const toMemberPhone = (phone) => {
+  const digits = normalisePhone(phone);
+  if (!digits) return null;
+  // 254712345678 -> 0712345678
+  return digits.startsWith('254') ? '0' + digits.slice(3) : digits;
+};
+
+/**
+ * Records a successful M-Pesa payment as a contribution and a ledger entry.
+ *
+ * Runs in a transaction: a contribution without its ledger entry would leave the
+ * cash book out of balance, and a ledger entry without a contribution would
+ * record money no member is credited for.
+ *
+ * Idempotent by mpesa_receipt_number. Safaricom retries callbacks, and without
+ * this guard a retry would credit the member twice for one payment.
+ *
+ * Returns a summary for logging. Never throws: the callback must always answer
+ * Safaricom with ResultCode 0, or Safaricom keeps retrying a payment that has
+ * already been recorded.
+ */
+const recordSuccessfulPayment = async ({ amount, mpesaReceipt, phone, paymentMethod }) => {
+  const memberPhone = toMemberPhone(phone);
+  if (!memberPhone) {
+    return { matched: false, reason: 'Unusable phone number: ' + phone };
+  }
+
+  const [members] = await pool.execute(
+    'SELECT id, full_name, phone FROM members WHERE phone = ? AND status = ?',
+    [memberPhone, 'active']
+  );
+
+  if (members.length === 0) {
+    return { matched: false, reason: 'No active member with phone ' + memberPhone };
+  }
+
+  const member = members[0];
+
+  // Already recorded? A retry must not credit the member twice.
+  const [existing] = await pool.execute(
+    'SELECT id FROM contributions WHERE reference_number = ?',
+    [mpesaReceipt]
+  );
+  if (existing.length > 0) {
+    return { matched: true, memberId: member.id, duplicate: true, contributionId: existing[0].id };
+  }
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const [contrib] = await conn.execute(
+      `INSERT INTO contributions
+        (member_id, amount, contribution_date, payment_method, reference_number, status, remarks, recorded_by)
+       VALUES (?, ?, CURDATE(), ?, ?, 'confirmed', ?, NULL)`,
+      [
+        member.id,
+        amount,
+        paymentMethod,
+        mpesaReceipt,
+        'M-Pesa ' + (paymentMethod === 'mpesa_c2b' ? 'C2B' : 'STK push') + ', receipt ' + mpesaReceipt
+      ]
+    );
+
+    await conn.execute(
+      `INSERT INTO ledger_entries
+        (direction, category, description, amount, entry_date, payment_method, reference_number, member_id, recorded_by)
+       VALUES ('in', 'Contribution', ?, ?, CURDATE(), ?, ?, ?, NULL)`,
+      [
+        'M-Pesa contribution from ' + member.full_name,
+        amount,
+        paymentMethod,
+        mpesaReceipt,
+        member.id
+      ]
+    );
+
+    await conn.commit();
+
+    // Notify the member. A payment they made should never need them to go
+    // looking for it.
+    dispatch('sms', {
+      to: member.phone,
+      message: 'Your M-Pesa payment of KES ' + Number(amount).toLocaleString() +
+        ' has been received. Receipt ' + mpesaReceipt + '. Thank you.'
+    }).catch((e) => console.error('[mpesa] notification failed:', e.message));
+
+    return { matched: true, memberId: member.id, contributionId: contrib.insertId };
+  } catch (error) {
+    await conn.rollback();
+    throw error;
+  } finally {
+    conn.release();
+  }
+};
 
 // Generate M-Pesa access token
 const getAccessToken = async (cfg) => {
@@ -235,8 +340,27 @@ const mpesaCallback = async (req, res) => {
         [JSON.stringify(req.body), CheckoutRequestID]
       );
 
-      // TODO: Match phone to member and record contribution
-      // This would trigger notifications
+      // Match the payer to a member and record the contribution. Without this the
+      // money arrives and is marked success, but no member is credited and no
+      // ledger entry exists - the payment is real and the books never see it.
+      const recorded = await recordSuccessfulPayment({
+        amount,
+        mpesaReceipt,
+        phone,
+        paymentMethod: 'mpesa_stk'
+      });
+
+      if (recorded.matched && !recorded.duplicate) {
+        console.log(`[mpesa] recorded contribution ${recorded.contributionId} for member ${recorded.memberId}`);
+      } else if (recorded.duplicate) {
+        // Safaricom retried a callback that was already processed. Expected, and
+        // must not be reported as an error.
+        console.log(`[mpesa] duplicate callback ignored for receipt ${mpesaReceipt}`);
+      } else {
+        // Real money from a number no member claims. Logged loudly: this is the
+        // case an operator has to act on, not swallow.
+        console.warn(`[mpesa] UNMATCHED payment: KES ${amount} from ${phone}, receipt ${mpesaReceipt} - ${recorded.reason}`);
+      }
     } else {
       await pool.execute(
         `UPDATE mpesa_transactions SET status = 'failed', response_data = ? WHERE transaction_id = ?`,
@@ -350,7 +474,7 @@ const c2bConfirmation = async (req, res) => {
     const body = req.body || {};
     const transId = body.TransID || body.TransId || null;
     const phone = String(body.MSISDN || body.PhoneNumber || '').trim();
-    const amount = Number(body.TransAmt || body.Amount || 0);
+    const amount = Number(body.TransAmount || body.TransAmt || body.Amount || 0);
 
     // Recorded so a C2B payment appears in the ledger trail rather than only in
     // Safaricom's own dashboard. Duplicate TransIDs update rather than fail, which
@@ -371,6 +495,21 @@ const c2bConfirmation = async (req, res) => {
           JSON.stringify(body)
         ]
       );
+
+      // Same gap the STK callback had: the transaction was recorded but the member
+      // was never credited. Money arrives, the ledger never sees it.
+      const recorded = await recordSuccessfulPayment({
+        amount,
+        mpesaReceipt: transId,
+        phone,
+        paymentMethod: 'mpesa_c2b'
+      });
+
+      if (recorded.matched && !recorded.duplicate) {
+        console.log(`[mpesa] C2B recorded contribution ${recorded.contributionId} for member ${recorded.memberId}`);
+      } else if (!recorded.matched) {
+        console.warn(`[mpesa] C2B UNMATCHED payment: KES ${amount} from ${phone}, TransID ${transId} - ${recorded.reason}`);
+      }
     }
 
     console.log(

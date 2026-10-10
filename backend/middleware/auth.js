@@ -194,6 +194,51 @@ const authenticateEither = async (req, res, next) => {
       return res.status(403).json({ error: 'This endpoint requires a member token.' });
     }
 
+    /*
+     * An admin token gets its role and permissions attached, so `req.user` means
+     * the same thing here as it does under `authenticate`.
+     *
+     * Previously this middleware handed back the bare JWT payload, which for an
+     * admin token has no `permissions` at all. Any endpoint reachable by both
+     * portals therefore could not check an admin's rights without a second
+     * query, and a handler that assumed `req.user.permissions` existed would read
+     * it as "no permissions" and quietly deny a treasurer access they legitimately
+     * had. Strictly additive: no new rejection is introduced, and the existing
+     * callers that only read the gateway list are unaffected.
+     */
+    if (decoded.type === 'admin') {
+      const [admins] = await pool.execute(
+        `SELECT a.id, a.role_id, a.is_active, r.name AS role_name
+           FROM admins a
+           JOIN roles r ON a.role_id = r.id
+          WHERE a.id = ?`,
+        [decoded.id]
+      );
+
+      // An unknown admin id is left to fail on its own resource rather than here:
+      // this middleware is deliberately permissive about identity and only
+      // adds context.
+      if (admins.length > 0) {
+        const admin = admins[0];
+        const [perms] = await pool.execute(
+          `SELECT p.name FROM permissions p
+             JOIN role_permissions rp ON p.id = rp.permission_id
+            WHERE rp.role_id = ?`,
+          [admin.role_id]
+        );
+        const names = perms.map((p) => p.name);
+
+        req.user = {
+          ...decoded,
+          role: admin.role_name,
+          role_id: admin.role_id,
+          is_active: admin.is_active,
+          permissions: await effectivePermissions(admin.id, admin.role_name, names)
+        };
+        return next();
+      }
+    }
+
     req.user = decoded;
     return next();
   } catch (error) {

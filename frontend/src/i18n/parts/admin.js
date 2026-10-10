@@ -404,6 +404,55 @@ export default {
     'gateway.methodMpesaStk': 'M-Pesa (STK Push)',
     'gateway.methodMpesaC2b': 'M-Pesa (paybill / C2B)',
     'gateway.methodAirtel': 'Airtel Money',
+
+    // ---- Backend error messages ----
+    // The backend returns plain English strings. These map them to i18n keys so
+    // a Swahili user sees a Swahili message. Unknown messages pass through
+    // unchanged so nothing is ever swallowed.
+    'err.invalidCredentials': 'Invalid username/email or password.',
+    'err.loginFieldsRequired': 'Enter your username or email, and your password.',
+    'err.accountDeactivated': 'Account is deactivated. Contact super admin.',
+    'err.accountNotActive': 'Your account is not active. Please contact the admin.',
+    'err.loginFailed': 'Login failed.',
+    'err.adminNotFound': 'Admin not found.',
+    'err.profileFailed': 'Failed to fetch profile.',
+    'err.passwordFieldsRequired': 'Current and new password are required.',
+    'err.passwordTooShort': 'New password must be at least 8 characters.',
+    'err.allFieldsRequired': 'All fields are required.',
+    'err.usernameTaken': 'That username is already taken.',
+    'err.emailExists': 'Email already exists.',
+    'err.cannotDeleteSelf': 'You cannot delete your own account.',
+    'err.memberNotFound': 'Member not found.',
+    'err.memberHasHistory': 'This member has financial history and cannot be deleted. Deactivate instead.',
+    'err.cannotDeleteLastSuperAdmin': 'Cannot delete the last super admin.',
+    'err.contributionFieldsRequired': 'Member, amount, and date are required.',
+    'err.contributionRecorded': 'Contribution recorded successfully.',
+    'err.loanNotFound': 'Loan not found.',
+    'err.loanSubmitted': 'Loan application submitted.',
+    'err.loanApproved': 'Loan approved.',
+    'err.loanRejected': 'Loan rejected.',
+    'err.repaymentRecorded': 'Repayment recorded.',
+    'err.activeLoanExists': 'Member has an active loan.',
+    'err.loanExceedsMax': 'Loan amount exceeds the maximum allowed.',
+    'err.settingNotFound': 'Setting not found.',
+    'err.invalidValue': 'Invalid value.',
+    'err.mpesaNotConfigured': 'M-Pesa is not configured.',
+    'err.safaricomUnreachable': 'Could not reach Safaricom.',
+
+    // ---- Welfare fund rules ----
+    // Each switch says what it does, because these rules decide who may ask
+    // and how much the fund can promise, and that is not guessable from a label.
+    'settings.welfareRules': 'Welfare fund',
+    'settings.welfareEnabled': 'The welfare fund is open',
+    'settings.welfareEnabledNote': 'When off, no contributions are accepted and no requests are taken.',
+    'settings.welfareSelfContribute': 'Members may contribute for themselves',
+    'settings.welfareSelfContributeNote': 'When off, a member must ask an admin to record their contribution.',
+    'settings.welfareNeedsApproval': 'Requests wait for committee approval',
+    'settings.welfareNeedsApprovalNote': 'When off, a valid request is paid out as soon as it is submitted.',
+    'settings.welfareMaxRequest': 'Largest single request ({cur})',
+    'settings.welfareMaxRequestHint': 'Use 0 for no limit.',
+    'settings.welfareMinMonths': 'Months contributed before a member may ask',
+    'settings.welfareMinMonthsHint': 'Use 0 for no waiting period.',
     'settings.notConnected': 'Not connected',
     'settings.notConnectedNote': 'This gateway can be selected and its details saved, but it cannot take money until the payment integration is built.',
     'settings.gatewayEndpoint': 'Needs in the Daraja portal:',
@@ -818,5 +867,54 @@ export default {
     'gateway.methodCash': 'Fedha Tasifu',
     'gateway.desc.bank': 'Rekodi uhamisho ambao mwanachama alifanya moja kwa moja kwenye akaunti ya chama.',
     'gateway.desc.cash': 'Fedha zilizotolewa mikutano. Msimamizi ndiye anayerekodi.',
+
+    // ---- Ujumbe wa kosea kutoka kwa seva ----
+    // Seva hurejesha maelezo ya kiingereza. Hizi huzifanya kuwa cha Kiswahili ili
+    // mtumiaji aone Kiswahili. Zisizojulikana hubaki kama zivyo.
+    'err.invalidCredentials': 'Jina la mtumiaji/barua pepe au nenosiri si sahihi.',
+    'err.loginFieldsRequired': 'Weka jina la mtumiaji au barua pepe, na nenosiri.',
+    'err.accountDeactivated': 'Akaunti imezimwa. Wasiliana na msimamizi mkuu.',
+    'err.accountNotActive': 'Akaunti yako haijaanzishwa. Tafadhali wasiliana na msimamizi.',
+    'err.loginFailed': 'Kuingia kumeshindwa.',
+    'err.adminNotFound': 'Msimamizi hakupatikana.',
+    'err.profileFailed': 'Hawezi kusoma wasifu.',
+    'err.passwordFieldsRequired': 'Nenosiri la sasa na la ziada ni lazima.',
+    'err.passwordTooShort': 'Nenosiri jipima lazima liwe na herufi 8 au zaidi.',
+    'err.allFieldsRequired': 'Sehemu zote ni lazima.',
+    'err.usernameTaken': 'Jina la mtumiaji limekwisha chukuliwa.',
+    'err.emailExists': 'Barua pepe tayari ipo.',
+    'err.cannotDeleteSelf': 'Huwezi kufuta akaunti yako mwenyewe.',
+    'err.memberNotFound': 'Mwanachama hakupatikana.',
+    'err.memberHasHistory': 'Mwanachama huyu ana rekodi za kifedha na hawezi kufutwa. Zima badala yake.',
+    'err.cannotDeleteLastSuperAdmin': 'Hawezi kufuta msimamizi mkuu wa mwisho.',
+    'err.contributionFieldsRequired': 'Mwanachama, kiwango, na tarehe ni lazima.',
+    'err.contributionRecorded': 'Mchango umehifadhiwa.',
+    'err.loanNotFound': 'Mkopo hakupatikana.',
+    'err.loanSubmitted': 'Ombi la mkopo limewasilishwa.',
+    'err.loanApproved': 'Mkopo umekubaliwa.',
+    'err.loanRejected': 'Mkopo umekatwa.',
+    'err.repaymentRecorded': 'Malipo ya mkopo yamerekodiwa.',
+    'err.activeLoanExists': 'Mwanachama ana mkopo hai.',
+    'err.loanExceedsMax': 'Kiwango kwa mkopo kipita kiwango kikubwa zinazoruhusiwa.',
+    'err.settingNotFound': 'Mpangilio haupatikani.',
+    'err.invalidValue': 'Thamani si sahihi.',
+    'err.mpesaNotConfigured': 'M-Pesa haijawazwa.',
+    'err.safaricomUnreachable': 'Hawezi kufikia Safaricom.',
+
+    // ---- Sheria za mfuko wa wafaahamu ----
+    // Kila kiSwitches hujeleza kinachofanya, kwa sababu sheria hizi zinaamua
+    // nani anaweza kuomba na kiasi mfuko unaweza ahidi, jambo lisilojulikana
+    // kutoka jina tu.
+    'settings.welfareRules': 'Mfuko wa wafaahamu',
+    'settings.welfareEnabled': 'Mfuko wa wafaahamu umefunguliwa',
+    'settings.welfareEnabledNote': 'Ukizimwa, machango hayakubaliwi na maombi hayatakaliwa.',
+    'settings.welfareSelfContribute': 'Wanachama wanaweza kujichangia',
+    'settings.welfareSelfContributeNote': 'Ukizimwa, mwanachama lazima aombe msimamizi arekodi mchango wake.',
+    'settings.welfareNeedsApproval': 'Maombi yasubiri kibali cha kamati',
+    'settings.welfareNeedsApprovalNote': 'Ukizimwa, ombi halali hulipwa mara tu unapowasilishwa.',
+    'settings.welfareMaxRequest': 'Ombi kubwa zaidi ({cur})',
+    'settings.welfareMaxRequestHint': 'Tumia 0 kama hakuna kikomo.',
+    'settings.welfareMinMonths': 'Miezi ya kuchangia kabla mwanachama anaweza kuomba',
+    'settings.welfareMinMonthsHint': 'Tumia 0 kama hakuna muda wa kusubiri.',
   }
 };

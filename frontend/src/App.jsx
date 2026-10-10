@@ -1,24 +1,42 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { useI18n } from './i18n/I18nContext';
 import { Inbox } from 'lucide-react';
 import Login from './pages/Login';
-import AdminDashboard from './pages/AdminDashboard';
-import MemberDashboard from './pages/MemberDashboard';
-import Members from './pages/Members';
-import Contributions from './pages/Contributions';
-import Loans from './pages/Loans';
-import Welfare from './pages/Welfare';
-import Reports from './pages/Reports';
-import Settings from './pages/Settings';
-import AdminManagement from './pages/AdminManagement';
-import Notifications from './pages/Notifications';
-import Impersonate from './pages/Impersonate';
-import CashBook from './pages/CashBook';
-import Registrations from './pages/Registrations';
 import Layout from './components/Layout';
 import Footer from './components/Footer';
+
+// Route-level code splitting: every page loads on demand rather than all at
+// once. The bundle was 970 kB in a single chunk, so a member opening their
+// dashboard paid for the admin pages too. These load when first navigated to.
+const MemberDashboard = lazy(() => import('./pages/MemberDashboard'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const Members = lazy(() => import('./pages/Members'));
+const Contributions = lazy(() => import('./pages/Contributions'));
+const Loans = lazy(() => import('./pages/Loans'));
+const Welfare = lazy(() => import('./pages/Welfare'));
+const Reports = lazy(() => import('./pages/Reports'));
+const Settings = lazy(() => import('./pages/Settings'));
+const AdminManagement = lazy(() => import('./pages/AdminManagement'));
+const Notifications = lazy(() => import('./pages/Notifications'));
+const Impersonate = lazy(() => import('./pages/Impersonate'));
+const CashBook = lazy(() => import('./pages/CashBook'));
+const Registrations = lazy(() => import('./pages/Registrations'));
+
+/** Wraps a lazy page with the shared loading fallback. */
+const Page = ({ children }) => (
+  <Suspense
+    fallback={
+      <div className="empty-state" style={{ minHeight: '50vh' }}>
+        <Inbox size={32} />
+        <p>…</p>
+      </div>
+    }
+  >
+    {children}
+  </Suspense>
+);
 
 function App() {
   const { user, loading } = useAuth();
@@ -51,11 +69,11 @@ function App() {
     return (
       <Layout>
         <Routes>
-          <Route path="/" element={<MemberDashboard />} />
-          <Route path="/contributions" element={<Contributions />} />
-          <Route path="/loans" element={<Loans />} />
-          <Route path="/welfare" element={<Welfare />} />
-          <Route path="/notifications" element={<Notifications />} />
+          <Route path="/" element={<Page><MemberDashboard /></Page>} />
+          <Route path="/contributions" element={<Page><Contributions /></Page>} />
+          <Route path="/loans" element={<Page><Loans /></Page>} />
+          <Route path="/welfare" element={<Page><Welfare /></Page>} />
+          <Route path="/notifications" element={<Page><Notifications /></Page>} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Layout>
@@ -65,20 +83,20 @@ function App() {
   return (
     <Layout>
       <Routes>
-        <Route path="/" element={<AdminDashboard />} />
-        <Route path="/members" element={<Members />} />
-        <Route path="/registrations" element={<Registrations />} />
+        <Route path="/" element={<Page><AdminDashboard /></Page>} />
+        <Route path="/members" element={<Page><Members /></Page>} />
+        <Route path="/registrations" element={<Page><Registrations /></Page>} />
         {/* Roles & Rights moved into Settings. Old links and bookmarks still work. */}
         <Route path="/roles" element={<Navigate to="/settings" replace />} />
-        <Route path="/contributions" element={<Contributions />} />
-        <Route path="/loans" element={<Loans />} />
-        <Route path="/welfare" element={<Welfare />} />
-        <Route path="/cashbook" element={<CashBook />} />
-        <Route path="/reports" element={<Reports />} />
-        <Route path="/notifications" element={<Notifications />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/admins" element={<AdminManagement />} />
-        <Route path="/portal-switch" element={<Impersonate />} />
+        <Route path="/contributions" element={<Page><Contributions /></Page>} />
+        <Route path="/loans" element={<Page><Loans /></Page>} />
+        <Route path="/welfare" element={<Page><Welfare /></Page>} />
+        <Route path="/cashbook" element={<Page><CashBook /></Page>} />
+        <Route path="/reports" element={<Page><Reports /></Page>} />
+        <Route path="/notifications" element={<Page><Notifications /></Page>} />
+        <Route path="/settings" element={<Page><Settings /></Page>} />
+        <Route path="/admins" element={<Page><AdminManagement /></Page>} />
+        <Route path="/portal-switch" element={<Page><Impersonate /></Page>} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Layout>

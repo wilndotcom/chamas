@@ -4677,6 +4677,31 @@ tbody tr:last-child td {
 }
 
 /* Toggle switch. The checkbox stays in the DOM for keyboard and screen readers. */
+/*
+ * A labelled on/off row for Settings.
+ *
+ * The bare checkbox sits beside a label and a note explaining what the switch
+ * actually does, because several of these settings (welfare rules especially)
+ * have consequences that are not obvious from the label alone. Wrapped in a
+ * label so the whole line is clickable, which is what a switch should do.
+ */
+.switch-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 8px 0;
+  font-weight: 500;
+}
+
+.switch-row input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  cursor: pointer;
+  accent-color: var(--brand);
+}
+
 .switch {
   position: relative;
   flex-shrink: 0;
@@ -4748,7 +4773,32 @@ tbody tr:last-child td {
   .gateway-row {
     flex-wrap: wrap;
   }
-  .switch {
+  /*
+ * A labelled on/off row for Settings.
+ *
+ * The bare checkbox sits beside a label and a note explaining what the switch
+ * actually does, because several of these settings (welfare rules especially)
+ * have consequences that are not obvious from the label alone. Wrapped in a
+ * label so the whole line is clickable, which is what a switch should do.
+ */
+.switch-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 8px 0;
+  font-weight: 500;
+}
+
+.switch-row input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  cursor: pointer;
+  accent-color: var(--brand);
+}
+
+.switch {
     margin-left: auto;
   }
 }

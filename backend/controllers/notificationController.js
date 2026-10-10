@@ -203,15 +203,42 @@ const sendReminders = async (req, res) => {
       ? member_ids.map(Number)
       : null;
 
-    const targetChannels = (Array.isArray(channels) && channels.length
+    /*
+     * Which channels to use.
+     *
+     * The per-request `channels` array wins when given. Otherwise the
+     * `reminder_channels` setting provides the default selection. Either way the
+     * result is filtered through the channel toggles: a channel that has been
+     * switched off in Settings must never be used, even if it is named here. That
+     * is the bug this guard fixes - `reminder_channels` naming WhatsApp while
+     * `channel_whatsapp_enabled` was '0' produced reminders on a channel the
+     * operator had turned off.
+     */
+    const cfg = await getNotificationConfig();
+
+    const selected = (Array.isArray(channels) && channels.length
       ? channels
       : String(await getSetting('reminder_channels', 'sms')).split(',')
     )
       .map((c) => String(c).trim().toLowerCase())
       .filter((c) => ['sms', 'whatsapp', 'email', 'in_app'].includes(c));
 
+    const targetChannels = selected.filter((c) => {
+      if (c === 'in_app') return true; // Always available; no toggle exists.
+      return cfg.channels[c]?.enabled !== false;
+    });
+
     if (targetChannels.length === 0) {
-      return res.status(400).json({ error: 'No valid channels selected.' });
+      // Say which channels were dropped and why, rather than leaving the operator
+      // to guess why a reminder that should have sent did not.
+      const dropped = selected.filter((c) => !targetChannels.includes(c));
+      return res.status(400).json({
+        error: 'No valid channels selected.',
+        dropped,
+        hint: dropped.length
+          ? 'Switched off in Settings: ' + dropped.join(', ')
+          : 'Choose at least one channel.'
+      });
     }
 
     const risk = await findRiskMembers();

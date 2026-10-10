@@ -62,6 +62,14 @@ const EDITABLE = new Set([
   'email_user',
   'email_pass',
 
+  // Welfare rules (migration 016). Group decisions rather than constants, so the
+  // committee can change them without a code change.
+  'welfare_enabled',
+  'welfare_allow_self_contribution',
+  'welfare_request_needs_approval',
+  'welfare_max_request_amount',
+  'welfare_min_months_contributed',
+
   // On/off switches, separate from having credentials. An operator can hold a
   // working key and still want SMS switched off, and conflating the two makes
   // "saved the key but nothing sends" impossible to diagnose.
@@ -140,6 +148,11 @@ const ALLOWED_VALUES = {
   channel_sms_enabled: ['0', '1'],
   channel_whatsapp_enabled: ['0', '1'],
   channel_email_enabled: ['0', '1'],
+
+  // Welfare switches, same 0/1 convention.
+  welfare_enabled: ['0', '1'],
+  welfare_allow_self_contribution: ['0', '1'],
+  welfare_request_needs_approval: ['0', '1'],
 
   // The custom provider's fixed choices. Closed so a typo cannot be stored and
   // then silently treated as the default at send time.
@@ -249,7 +262,12 @@ const NUMERIC_RULES = {
   loan_duration_months: { min: 1, max: 60, integer: true },
   max_loan_multiplier: { min: 1, max: 100 },
   monthly_contribution: { min: 0, max: 100000000, allowDecimal: true },
-  welfare_contribution: { min: 0, max: 100000000, allowDecimal: true }
+  welfare_contribution: { min: 0, max: 100000000, allowDecimal: true },
+  // 0 is meaningful for both of these: "no cap" and "no waiting period". They are
+  // allowed at zero rather than rejected as out of range, which would make
+  // "unlimited" unreachable and force the committee to invent a fake limit.
+  welfare_max_request_amount: { min: 0, max: 100000000, allowDecimal: true },
+  welfare_min_months_contributed: { min: 0, max: 600, integer: true }
 };
 
 /**

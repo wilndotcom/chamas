@@ -152,7 +152,70 @@ export default {
     'welfare.amountNeeded': 'Amount needed ({currency}) *',
     'welfare.reasonForRequest': 'Reason for request *',
     'welfare.reasonPlaceholder': 'Describe your situation…',
-    'welfare.submitRequest': 'Submit Request'
+    'welfare.submitRequest': 'Submit Request',
+
+    // ---- Contributing to the fund ----
+    // Separate from requesting help: putting money in and taking money out are
+    // different acts with different controls, and one button for both let a
+    // member pay into the fund by accident.
+    'welfare.contribute': 'Contribute to welfare',
+    'welfare.recordContribution': 'Record contribution',
+    'welfare.record': 'Record',
+    'welfare.contributionRecorded': 'Welfare contribution recorded',
+    'welfare.contributionFailed': 'Failed to record contribution',
+    'welfare.chooseMember': 'Choose a member\u2026',
+    'welfare.usualIs': 'The usual welfare contribution for this group is {amount}.',
+
+    // ---- What the fund holds ----
+    'welfare.fundAvailable': 'Available in the fund',
+    'welfare.fundIn': 'Paid in',
+    'welfare.fundOut': 'Paid out',
+    'welfare.pendingRequests': 'Waiting for a decision',
+    'welfare.contributors': 'Members who have contributed',
+
+    // ---- A member's own standing ----
+    'welfare.yourStanding': 'Your welfare standing',
+    'welfare.youContributed': 'You have contributed',
+    'welfare.thisMonth': 'Contributed this month',
+    'welfare.youReceived': 'You have received',
+    'welfare.usualAmount': 'Usual monthly amount',
+
+    // ---- Approval and payout ----
+    // Two steps on purpose. Approving says the committee agreed; paying out says
+    // the cash moved.
+    'welfare.approve': 'Approve this request',
+    'welfare.reject': 'Reject this request',
+    'welfare.payOut': 'Pay out',
+    'welfare.requestPaid': 'Welfare payment sent',
+    //
+    'welfare.autoApprovedNote': 'This group pays welfare requests without waiting for approval, so yours will be sent straight away.',
+    'welfare.capIs': 'This group limits a single request to {amount}.',
+    'welfare.noContributions': 'No welfare contributions recorded yet.',
+    'welfare.noRequests': 'No welfare requests yet.',
+    'status.disbursed': 'Paid out',
+
+    // ---- Showing the books to members ----
+    // The wording is the point here. Savings and welfare are described as money
+    // held for members and interest as the only income, because presenting the
+    // members own savings as group profit would overstate what was earned.
+    'transp.title': 'Where the group stands',
+    'transp.loadFailed': 'The group figures could not be loaded.',
+    'transp.savingsHeld': 'Savings held',
+    'transp.welfareHeld': 'Welfare held',
+    'transp.heldTotal': 'Total held for members',
+    'transp.cashOnHand': 'Money in hand',
+    'transp.receivable': 'Owed back by members',
+    'transp.netWorth': 'What the group holds in total',
+    'transp.interestCollected': 'Interest collected',
+    'transp.runningCosts': 'Running costs',
+    'transp.profit': 'Profit',
+    'transp.lastTwelve': 'The last twelve months',
+    'transp.showMembers': 'See who has contributed ({count})',
+    'transp.hideMembers': 'Hide the member list',
+    'transp.member': 'Member',
+    'transp.loanBalance': 'Loan balance',
+    'transp.alsoAdmin': 'also an admin',
+    'transp.nobodyYet': 'No one has contributed or borrowed yet.',
   },
 
   sw: {
@@ -292,6 +355,70 @@ export default {
     'welfare.amountNeeded': 'Kiasi kinachohitajiwa ({currency}) *',
     'welfare.reasonForRequest': 'Sababu ya ombi *',
     'welfare.reasonPlaceholder': 'Eleza hali yako…',
-    'welfare.submitRequest': 'Wasilisha Ombi'
+    'welfare.submitRequest': 'Wasilisha Ombi',
+
+    // ---- Kuchangia kwa mfuko ----
+    // Tofauti na kuomba msaada: kutoa na kuingia ni vitu viwili tofauti, na
+    // kitufe moja kikifanya vyote kilikuwa rahisi mwanachama kuingia bila
+    // kutaratibu.
+    'welfare.contribute': 'Changia kwa wafaahamu',
+    'welfare.recordContribution': 'Rekodi mchango',
+    'welfare.record': 'Rekodi',
+    'welfare.contributionRecorded': 'Mchango wa wafaahamu umerekodwa',
+    'welfare.contributionFailed': 'Imeshindwa kurekodi mchango',
+    'welfare.chooseMember': 'Chagua mwanachama\u2026',
+    'welfare.usualIs': 'Mchango wa kawaida wa wafaahamu kwa kundi hili ni {amount}.',
+
+    // ---- Fundi ina kiasi gani ----
+    'welfare.fundAvailable': 'Kilichobaki kwenye mfuko',
+    'welfare.fundIn': 'Kilichoingia',
+    'welfare.fundOut': 'Kilichotoka',
+    'welfare.pendingRequests': 'Inasubiri uamuzi',
+    'welfare.contributors': 'Wanachama waliochangia',
+
+    // ---- Naafa yako ya wafaahamu ----
+    'welfare.yourStanding': 'Naafa yako ya wafaahamu',
+    'welfare.youContributed': 'Umechangia',
+    'welfare.thisMonth': 'Umechangia mwezi huu',
+    'welfare.youReceived': 'Umepokea',
+    'welfare.usualAmount': 'Kiasi cha kawaida kwa mwezi',
+
+    // ---- Kukubali na kulipa ----
+    // Hatua mbili kwa makusudio. Kukubali kunamaanisha kamati imekubali;
+    // kulipa kunamaanisha pesa imetoka.
+    'welfare.approve': 'Kubali ombi hili',
+    'welfare.reject': 'Kataa ombi hili',
+    'welfare.payOut': 'Lipa',
+    'welfare.requestPaid': 'Malipo ya wafaahamu yametuma',
+    //
+    'welfare.autoApprovedNote': 'Kundi hili hulipa maombi ya wafaahamu bila kusubiri kibali, kwa hiyo yako yitatumwa mara moja.',
+    'welfare.capIs': 'Kundi hili linaliomo ombi moja kwa {amount}.',
+    'welfare.noContributions': 'Hakuna machango ya wafaahamu yaliyorekodiwa bado.',
+    'welfare.noRequests': 'Hakuna maombi ya wafaahamu bado.',
+    'status.disbursed': 'Imelipwa',
+
+    // ---- Kuonyesha hesabu kwa wanachama ----
+    // Maneno ndiyo yenye maana hapa. Akiba na wafaahamu zinaelezwa kama
+    // pesa inayohifadhiwa kwa wanachama, na riba ndio mapato pekee, kwa sababu
+    // kuonyesha akiba ya wanachama kama mapato ya kundi kunakosesha kiasi
+    // kilichopatikana.
+    'transp.title': 'Halali ya kundi',
+    'transp.loadFailed': 'Takwimu za kundi hazikuweza kupakiwa.',
+    'transp.savingsHeld': 'Akiba iliyohifadhiwa',
+    'transp.welfareHeld': 'Wafaahamu zilizohifadhiwa',
+    'transp.heldTotal': 'Jumla iliyohifadhiwa kwa wanachama',
+    'transp.cashOnHand': 'Pesa zilizo mkononi',
+    'transp.receivable': 'Zinazowaribiwa na wanachama',
+    'transp.netWorth': 'Kundi lina jumla',
+    'transp.interestCollected': 'Riba iliyokusanywa',
+    'transp.runningCosts': 'Gharama za uendeshaji',
+    'transp.profit': 'Faida',
+    'transp.lastTwelve': 'Miezi kumi na miwili iliyopita',
+    'transp.showMembers': 'Ona ambao wamechangia ({count})',
+    'transp.hideMembers': 'Ficha orodha ya wanachama',
+    'transp.member': 'Mwanachama',
+    'transp.loanBalance': 'Salio la mkopo',
+    'transp.alsoAdmin': ' pia msimamizi',
+    'transp.nobodyYet': 'Bado hakuna aliyechangia au kukopa.',
   }
 };

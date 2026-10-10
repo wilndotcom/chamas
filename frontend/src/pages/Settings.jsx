@@ -209,8 +209,22 @@ const onMyLanguageChange = async (value) => {
     'monthly_contribution',
     'loan_interest_rate',
     'loan_duration_months',
-    'max_loan_multiplier',
-    'welfare_contribution'
+    'max_loan_multiplier'
+  ];
+
+  /**
+   * Welfare fund rules (migration 016).
+   *
+   * A separate save group from the general finance figures, because these are
+   * committee decisions about the fund rather than the group's lending terms.
+   */
+  const WELFARE_RULE_KEYS = [
+    'welfare_enabled',
+    'welfare_contribution',
+    'welfare_allow_self_contribution',
+    'welfare_request_needs_approval',
+    'welfare_max_request_amount',
+    'welfare_min_months_contributed'
   ];
 
   const AIRTEL_KEYS = [
@@ -448,16 +462,99 @@ const MPESA_KEYS = [
               onChange={(e) => setForm({ ...form, max_loan_multiplier: e.target.value })}
             />
           </div>
-          <div className="form-group">
-            <label>{t('settings.welfareContribution', { cur: form.currency || 'KES' })}</label>
-            <input
-              type="number"
-              value={form.welfare_contribution || ''}
-              onChange={(e) => setForm({ ...form, welfare_contribution: e.target.value })}
-            />
-          </div>
         </div>
         {saveRow(GENERAL_KEYS, t('settings.general'))}
+
+              {/*
+                Welfare is configured here rather than left to whatever the fund
+                happened to be doing. Without these the fund had no switch, no cap
+                and no waiting period, so a member could ask for anything and a
+                request sat approved but unpaid.
+              */}
+              <div className="card" style={{ marginTop: 16 }}>
+                <div className="card-header">
+                  <h3 className="card-title">{t('settings.welfareRules')}</h3>
+                </div>
+                <div className="card-body">
+                  <label className="switch-row">
+                    <input
+                      type="checkbox"
+                      checked={form.welfare_enabled === '1'}
+                      onChange={(e) =>
+                        setForm({ ...form, welfare_enabled: e.target.checked ? '1' : '0' })
+                      }
+                    />
+                    <span>{t('settings.welfareEnabled')}</span>
+                  </label>
+                  <p className="text-muted" style={{ fontSize: 13 }}>
+                    {t('settings.welfareEnabledNote')}
+                  </p>
+
+                  <div className="form-group">
+                    <label>{t('settings.welfareContribution', { cur: form.currency || 'KES' })}</label>
+                    <input
+                      type="number"
+                      value={form.welfare_contribution || ''}
+                      onChange={(e) => setForm({ ...form, welfare_contribution: e.target.value })}
+                    />
+                  </div>
+
+                  <label className="switch-row">
+                    <input
+                      type="checkbox"
+                      checked={form.welfare_allow_self_contribution === '1'}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          welfare_allow_self_contribution: e.target.checked ? '1' : '0'
+                        })
+                      }
+                    />
+                    <span>{t('settings.welfareSelfContribute')}</span>
+                  </label>
+                  <p className="text-muted" style={{ fontSize: 13 }}>
+                    {t('settings.welfareSelfContributeNote')}
+                  </p>
+
+                  <label className="switch-row">
+                    <input
+                      type="checkbox"
+                      checked={form.welfare_request_needs_approval === '1'}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          welfare_request_needs_approval: e.target.checked ? '1' : '0'
+                        })
+                      }
+                    />
+                    <span>{t('settings.welfareNeedsApproval')}</span>
+                  </label>
+                  <p className="text-muted" style={{ fontSize: 13 }}>
+                    {t('settings.welfareNeedsApprovalNote')}
+                  </p>
+
+                  <div className="form-group">
+                    <label>{t('settings.welfareMaxRequest', { cur: form.currency || 'KES' })}</label>
+                    <input
+                      type="number"
+                      value={form.welfare_max_request_amount || ''}
+                      onChange={(e) => setForm({ ...form, welfare_max_request_amount: e.target.value })}
+                    />
+                    <small className="field-hint">{t('settings.welfareMaxRequestHint')}</small>
+                  </div>
+
+                  <div className="form-group">
+                    <label>{t('settings.welfareMinMonths')}</label>
+                    <input
+                      type="number"
+                      value={form.welfare_min_months_contributed || ''}
+                      onChange={(e) => setForm({ ...form, welfare_min_months_contributed: e.target.value })}
+                    />
+                    <small className="field-hint">{t('settings.welfareMinMonthsHint')}</small>
+                  </div>
+                </div>
+                {saveRow(WELFARE_RULE_KEYS, t('settings.welfareRules'))}
+              </div>
               </div>
             </>
           )}

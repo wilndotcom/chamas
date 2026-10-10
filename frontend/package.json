@@ -9,9 +9,11 @@
     "scripts":  {
                     "dev":  "vite",
                     "build":  "vite build",
+                    "prebuild":  "node scripts/audit-i18n.mjs && node scripts/check-i18n-scope.mjs",
                     "preview":  "vite preview",
                     "icons":  "node scripts/generate-icons.mjs",
-                    "audit:i18n":  "node scripts/audit-i18n.mjs"
+                    "audit:i18n":  "node scripts/audit-i18n.mjs",
+                    "check:i18n-scope":  "node scripts/check-i18n-scope.mjs"
                 },
     "dependencies":  {
                          "react":  "^18.2.0",
