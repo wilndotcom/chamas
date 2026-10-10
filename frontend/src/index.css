@@ -4266,9 +4266,10 @@ tbody tr:last-child td {
   animation: install-rise 0.24s ease-out;
 }
 
+/* Transform-only, like the others: the install prompt must be readable even if
+   the animation never runs. */
 @keyframes install-rise {
   from {
-    opacity: 0;
     transform: translateY(14px);
   }
 }
@@ -4882,22 +4883,50 @@ tbody tr:last-child td {
    ANIMATION
    ============================================ */
 
+/*
+ * Transform-only, for the same reason as ise below: an element that fades in
+ * from opacity 0 is invisible if the animation never runs, and invisible is also
+ * unusable for a modal. Softening the start value to 0.001 was not enough - a
+ * dialog that is unreadable is no better than one that is missing.
+ *
+ * fadeIn has no transform of its own, so it gets a small scale to give it
+ * something to animate. Motion without changing legibility.
+ */
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from { transform: scale(0.985); }
+  to { transform: none; }
 }
 
 @keyframes popIn {
-  from { opacity: 0; transform: translateY(14px) scale(0.97); }
-  to { opacity: 1; transform: none; }
+  from { transform: translateY(14px) scale(0.97); }
+  to { transform: none; }
 }
 
+/*
+ * Entrance animation for cards.
+ *
+ * Transform only. It used to fade in from opacity 0, which meant the content's
+ * visibility depended on the animation actually running: if the browser's
+ * timeline stalled, the element sat at the "from" frame and stayed invisible.
+ * That is not hypothetical - a stalled timeline left the whole Welfare page
+ * (fund totals and the contributions table) unreadable, and there was no way
+ * for the reader to tell the numbers were missing rather than merely blank.
+ *
+ * Transform cannot hide anything, so a stalled or skipped animation now costs a
+ * few pixels of offset and nothing else. Content is legible from the first frame.
+ */
 @keyframes rise {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: none; }
+  from { transform: translateY(12px); }
+  to { transform: none; }
 }
 
-.card, .stat-card { animation: rise 0.4s ease both; }
+/*
+ * No fill-mode. With "both" the element adopts the animation's first frame
+ * before it starts and its last frame after, which is what made a stalled
+ * animation leave it permanently invisible. Without it the resting state is the
+ * element's own style: fully opaque, in place.
+ */
+.card, .stat-card { animation: rise 0.4s ease; }
 
 /* ============================================
    RESPONSIVE
@@ -5000,8 +5029,17 @@ tbody tr:last-child td {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /*
+   * animation: none rather than a 0.01ms duration.
+   *
+   * A near-zero duration still runs the animation, so the element still depends
+   * on the timeline advancing. Turning it off entirely means these users get the
+   * plain resting style, which is exactly what they asked for by turning motion
+   * off in the first place.
+   */
   *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
   }
 }
