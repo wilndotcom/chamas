@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <title>THE TEAM - Chama Management</title>
+
+    <!-- Installable app. The manifest is what lets the browser offer installation
+         and, on Android, what names the icon on the home screen. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <link rel="icon" type="image/png" sizes="64x64" href="/favicon-64.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!--
+      theme-color colours the browser chrome on Android. It is updated at runtime
+      to follow the saved skin, so this is only the pre-load default.
+    -->
+    <meta name="theme-color" content="#16a34a" />
+
+    <!-- iOS ignores the manifest for the home-screen name and icon, so these are
+         declared separately. Without them an iPhone install gets a screenshot of
+         the page instead of the icon. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="THE TEAM" />
+
+    <!--
+      viewport-fit=cover above lets the app draw under the notch, but it also
+      means content can sit under the status bar. Safe-area padding on the header
+      and footer keeps text clear of it.
+    -->
+    <meta name="description" content="Manage a chama's savings, contributions, loans and welfare fund." />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

@@ -1,0 +1,18 @@
+{
+  "name": "the-team",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Chama (savings group) management system for Kenya. Launcher for the backend and frontend.",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node scripts/launch.js",
+    "dev": "node scripts/launch.js",
+    "install": "node scripts/launch.js --install",
+    "build": "npm --prefix frontend run build",
+    "preview": "npm --prefix frontend run preview",
+    "backend": "npm --prefix backend run dev"
+  }
+}

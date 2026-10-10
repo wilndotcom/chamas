@@ -1,0 +1,96 @@
+THE TEAM — Chama Management System
+Non-Commercial MIT License
+
+Copyright (c) 2026 Kenneth Ndugi, WILNCOM TECH
+All rights reserved.
+
+────────────────────────────────────────────────────────────────────────────
+NOTE ON WHAT THIS LICENSE IS
+────────────────────────────────────────────────────────────────────────────
+
+This license is *based on* the MIT License, with one important change:
+commercial use is not permitted.
+
+Because of that change it is NOT the standard MIT License. If you need the
+real, unmodified MIT License, you do not have it. Calling this "MIT" in a
+contract or a product listing would be inaccurate.
+
+What this means in plain terms:
+
+  YOU MAY                          YOU MAY NOT
+  ─────────                        ────────────────────────
+  Use it for free                   Sell it, or any part of it
+  Run it for your own chama         Charge anyone for it
+  Adapt it to your own needs        Use it in a paid or commercial
+  Share it with other chamas          product or service
+  Study how it works                Distribute it as your own work
+  Contribute improvements           Remove the copyright notice
+
+"Chama" means a savings group or cooperative. The spirit here is that any
+group may benefit from the software at no cost, while the people who wrote it
+are the only ones who may profit from it.
+
+────────────────────────────────────────────────────────────────────────────
+TERMS
+────────────────────────────────────────────────────────────────────────────
+
+1. GRANT OF PERMISSION
+
+   Permission is granted, free of charge, to any individual or organisation
+   (the "User") to use, copy, modify and adapt this software and its source
+   code (the "Software") for any non-commercial purpose, subject to the
+   conditions below.
+
+2. CONDITIONS
+
+   The above copyright notice, this licence text and the attribution in
+   Section 4 must be retained in all copies or substantial portions of the
+   Software, including in any modified version.
+
+   This condition survives modification. If you adapt the Software for your
+   own chama, the notice "Developed by Kenneth Ndugi under WILNCOM TECH"
+   must remain visible in the user interface.
+
+3. NON-COMMERCIAL RESTRICTION
+
+   The User may not use, sell, sublicense, rent, lease, host commercially, or
+   otherwise exploit the Software, in whole or in part, for any commercial
+   purpose or in the course of any business whose primary purpose is to
+   provide the Software or functionality substantially similar to it to
+   third parties, whether or not for a fee.
+
+   Any commercial use requires prior written permission from the copyright
+   holder.
+
+4. ATTRIBUTION
+
+   Where the Software is displayed to end users, the User shall keep the
+   footer attribution — "Developed by Kenneth Ndugi under WILNCOM TECH" —
+   intact and visible.
+
+5. NO WARRANTY
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+   NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+   DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+   OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+   USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+6. TERMINATION
+
+   Any use of the Software that breaches Section 3, or any removal of the
+   attribution required by Sections 2 and 4, ends the licence automatically.
+   On termination the User must stop using the Software and delete all
+   copies.
+
+7. THIRD-PARTY COMPONENTS
+
+   The Software depends on third-party open-source packages under their own
+   licences. Those licences are unaffected by this document and remain in
+   force as written.
+
+────────────────────────────────────────────────────────────────────────────
+
+Commercial licensing enquiries: contact WILNCOM TECH.
