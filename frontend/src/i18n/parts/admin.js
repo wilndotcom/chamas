@@ -453,6 +453,13 @@ export default {
     'settings.welfareMaxRequestHint': 'Use 0 for no limit.',
     'settings.welfareMinMonths': 'Months contributed before a member may ask',
     'settings.welfareMinMonthsHint': 'Use 0 for no waiting period.',
+
+    // ---- Server unreachable, session still valid ----
+    'auth.connectionLostTitle': 'Cannot reach the server',
+    'auth.connectionLostBody': 'The server is not responding right now. This is usually brief - the app is still trying.',
+    'auth.stillSignedIn': 'You are still signed in. Your password is not the problem, so there is no need to sign in again.',
+    'auth.retryingIn': 'Still trying after {seconds} seconds…',
+    'auth.tryAgain': 'Try again now',
     'settings.notConnected': 'Not connected',
     'settings.notConnectedNote': 'This gateway can be selected and its details saved, but it cannot take money until the payment integration is built.',
     'settings.gatewayEndpoint': 'Needs in the Daraja portal:',
@@ -916,5 +923,12 @@ export default {
     'settings.welfareMaxRequestHint': 'Tumia 0 kama hakuna kikomo.',
     'settings.welfareMinMonths': 'Miezi ya kuchangia kabla mwanachama anaweza kuomba',
     'settings.welfareMinMonthsHint': 'Tumia 0 kama hakuna muda wa kusubiri.',
+
+    // ---- Seva haipatikani, lakini kifurushi kiko salama ----
+    'auth.connectionLostTitle': 'Seva haipatikani',
+    'auth.connectionLostBody': 'Seva haijitibu kwa sasa hivi. Kwa kawaida ni muda mchache - programu bado inajaribu.',
+    'auth.stillSignedIn': 'Bado umeingia. Nenosiri lako si tatizo, kwa hiyo hakuna sababu ya kuingia tena.',
+    'auth.retryingIn': 'Inajaribu tena baada ya sekunde {seconds}…',
+    'auth.tryAgain': 'Jaribu tena sasa',
   }
 };

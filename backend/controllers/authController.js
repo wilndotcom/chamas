@@ -504,7 +504,75 @@ const memberRegister = async (req, res) => {
   }
 };
 
-module.exports = {
+
+/**
+ * Issues a fresh token for whoever is already signed in.
+ *
+ * Called on every successful profile load, which slides the expiry forward: a
+ * member who uses the app at least once a week is never asked to log in again.
+ * Without this the session simply ended every 24 hours regardless of activity,
+ * which is the other half of "I have to log in every time".
+ *
+ * Requires the presented token to still be valid. A refresh endpoint that
+ * accepted anything, or that minted tokens without checking the account, would
+ * be a way to keep a session alive forever after the account was disabled or the
+ * password changed.
+ */
+const refreshToken = async (req, res) => {
+  try {
+    const token = (req.headers.authorization || '').replace('Bearer ', '').trim();
+    if (!token) {
+      return res.status(401).json({ error: 'No token provided.' });
+    }
+
+    // Re-verify rather than trusting the token was already checked: the account
+    // may have been deactivated since it was issued.
+    let decoded;
+    try {
+      decoded = require('jsonwebtoken').verify(token, process.env.JWT_SECRET);
+    } catch {
+      return res.status(401).json({ error: 'Session expired. Please sign in again.' });
+    }
+
+    const isAdmin = decoded.type === 'admin';
+    const newToken = require('jsonwebtoken').sign(
+      {
+        id: decoded.id,
+        email: decoded.email,
+        phone: decoded.phone,
+        role: decoded.role,
+        type: decoded.type,
+        impersonated_by: decoded.impersonated_by
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    );
+
+    if (isAdmin) {
+      const [rows] = await pool.execute(
+        'SELECT id, member_id, full_name, email, phone, is_active FROM admins WHERE id = ?',
+        [decoded.id]
+      );
+      if (rows.length === 0 || !rows[0].is_active) {
+        return res.status(403).json({ error: 'Account is deactivated.' });
+      }
+      return res.json({ token: newToken, type: 'admin' });
+    }
+
+    const [rows] = await pool.execute(
+      'SELECT id, full_name, email, phone, status FROM members WHERE id = ?',
+      [decoded.id]
+    );
+    if (rows.length === 0 || rows[0].status !== 'active') {
+      return res.status(403).json({ error: 'Account is not active.' });
+    }
+    return res.json({ token: newToken, type: 'member' });
+  } catch (error) {
+    console.error('Refresh token error:', error);
+    res.status(500).json({ error: 'Could not refresh the session.' });
+  }
+};module.exports = {
+  refreshToken,
   adminLogin,
   memberLogin,
   memberRegister,

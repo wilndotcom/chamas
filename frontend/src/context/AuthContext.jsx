@@ -18,6 +18,14 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(() => localStorage.getItem('token'));
   const [impersonatedBy, setImpersonatedBy] = useState(() => readStored('impersonatedBy'));
   const [loading, setLoading] = useState(true);
+  /*
+   * True when the session is still valid but the server could not be reached.
+   *
+   * Separate from being signed out on purpose. Previously there was no way to
+   * express "still signed in, just not talking to the server", so the app picked
+   * the only option it had and threw the user out to the login screen.
+   */
+  const [connectionLost, setConnectionLost] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -28,24 +36,99 @@ export const AuthProvider = ({ children }) => {
     fetchProfile();
   }, [token]);
 
+  /**
+   * Whether a failed profile request means the session is genuinely over.
+   *
+   * Only a rejection of the token itself counts. Everything else - the backend
+   * restarting under nodemon, a dropped connection, a 500, a rate limit - is
+   * temporary, and treating those as "signed out" is what made people log in
+   * again and again: any momentary hiccup silently deleted a valid token and
+   * dumped them on the login screen.
+   */
+  const sessionIsReallyOver = (error) => {
+    const status = error?.response?.status;
+    // 401 invalid or expired token, 403 deactivated or wrong portal. Both are
+    // decisions the server made about this session.
+    return status === 401 || status === 403;
+  };
+
+  /** Waits, so a restarting server gets a moment rather than being written off. */
+  const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
   const fetchProfile = async () => {
-    try {
-      // The stored type decides which profile to load, so a page reload during an
-      // impersonated member session still resolves correctly.
-      const type = localStorage.getItem('userType');
-      if (type === 'member') {
-        const { data } = await axios.get('/api/auth/member-profile');
-        setUser(data.member);
-      } else {
-        const { data } = await axios.get('/api/auth/profile');
-        setUser(data.admin);
+    // Three attempts. The server restarting takes a few seconds, and one
+    // immediate retry always loses that race.
+    const attempts = 3;
+
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+      try {
+        // The stored type decides which profile to load, so a page reload during an
+        // impersonated member session still resolves correctly.
+        const type = localStorage.getItem('userType');
+        const { data } =
+          type === 'member'
+            ? await axios.get('/api/auth/member-profile')
+            : await axios.get('/api/auth/profile');
+
+        setUser(type === 'member' ? data.member : data.admin);
+        setImpersonatedBy(readStored('impersonatedBy'));
+        setConnectionLost(false);
+        setLoading(false);
+
+        // Slide the expiry forward while the user is demonstrably active.
+        renewSession();
+        return;
+      } catch (error) {
+        if (sessionIsReallyOver(error)) {
+          console.warn('Session rejected, signing out:', error.response?.status);
+          logout();
+          setLoading(false);
+          return;
+        }
+
+        // Transient. Keep the stored token: if the server comes back, a reload
+        // recovers the session without anyone typing a password.
+        console.warn(
+          `Profile check failed (attempt ${attempt} of ${attempts}), keeping the session:`,
+          error?.response?.status || error?.message
+        );
+
+        if (attempt < attempts) {
+          await pause(attempt * 800);
+          continue;
+        }
+
+        // Out of attempts. Stay signed in and say so, rather than bouncing to
+        // the login screen and losing the session over a slow server.
+        setConnectionLost(true);
+        setLoading(false);
       }
-      setImpersonatedBy(readStored('impersonatedBy'));
-    } catch (error) {
-      console.error('Failed to fetch profile:', error);
-      logout();
-    } finally {
-      setLoading(false);
+    }
+  };
+
+  /**
+   * Exchanges the current token for a fresh one, in the background.
+   *
+   * Failure is ignored on purpose: a failed renewal leaves the existing token
+   * working until it expires, which is strictly better than tearing the session
+   * down over a request the user never asked for.
+   */
+  const renewSession = async () => {
+    try {
+      const current = localStorage.getItem('token');
+      if (!current) return;
+      const { data } = await axios.post(
+        '/api/auth/refresh',
+        {},
+        { headers: { Authorization: `Bearer ${current}` } }
+      );
+      if (data?.token) {
+        localStorage.setItem('token', data.token);
+        axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+        setToken(data.token);
+      }
+    } catch {
+      // Nothing to do. The current token remains valid until it expires.
     }
   };
 
@@ -144,6 +227,7 @@ export const AuthProvider = ({ children }) => {
         user,
         token,
         loading,
+        connectionLost,
         login,
         memberLogin,
         logout,

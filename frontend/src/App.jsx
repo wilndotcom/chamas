@@ -6,6 +6,7 @@ import { Inbox } from 'lucide-react';
 import Login from './pages/Login';
 import Layout from './components/Layout';
 import Footer from './components/Footer';
+import ConnectionLostNotice from './components/ConnectionLostNotice';
 
 // Route-level code splitting: every page loads on demand rather than all at
 // once. The bundle was 970 kB in a single chunk, so a member opening their
@@ -39,7 +40,7 @@ const Page = ({ children }) => (
 );
 
 function App() {
-  const { user, loading } = useAuth();
+  const { user, loading, connectionLost } = useAuth();
   const { t } = useI18n();
 
   if (loading) {
@@ -49,6 +50,18 @@ function App() {
         <p>{t('common.loading')}</p>
       </div>
     );
+  }
+
+  /*
+   * Still signed in, server unreachable.
+   *
+   * Shown instead of the login screen, because the session is intact and the
+   * alternative - bouncing to login - is exactly what made people believe they
+   * had been signed out by a blip they never caused. Retries on its own, so the
+   * app recovers by itself once the server is back.
+   */
+  if (connectionLost && !user) {
+    return <ConnectionLostNotice />;
   }
 
   // The login screen has no app shell, so it carries the footer itself.
