@@ -29,13 +29,18 @@ Env::load(dirname(__DIR__) . '/backend');
 echo "\nFinding lifecycle test records...\n";
 
 /*
- * Both check scripts create members under these names. Matched by name rather
- * than by a stored id so the cleanup works after a run that failed part way
- * through and never recorded what it made.
+ * Every check script that creates records names its member the same way, so one
+ * pattern catches them all. Matched by name rather than by a stored id, so the
+ * cleanup works after a run that failed part way through and never recorded what
+ * it made.
+ *
+ * The trailing phone digit makes it unambiguous: a real member would have to be
+ * called "M-Pesa Test" to be caught.
  */
 $members = Database::all(
     "SELECT id, full_name, phone FROM members
-      WHERE full_name IN ('Lifecycle Test', 'Transparency Test')"
+      WHERE full_name LIKE '% Test'
+         OR full_name IN ('Lifecycle Test', 'Transparency Test', 'M-Pesa Test')"
 );
 
 if ($members === []) {

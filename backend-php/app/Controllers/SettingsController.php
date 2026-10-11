@@ -10,6 +10,7 @@ use TheTeam\Log;
 use TheTeam\Request;
 use TheTeam\Response;
 use TheTeam\Utils\Identity;
+use TheTeam\Utils\MpesaConfig;
 use TheTeam\Utils\Settings;
 use TheTeam\Utils\SettingsSchema;
 
@@ -428,13 +429,19 @@ final class SettingsController
         // to what every other controller reads.
         Settings::forget();
 
+        // The M-Pesa config, which is cached for thirty seconds. Dropping it here
+        // is the difference between saving a key and it working, and between
+        // saving a key and appearing to do nothing.
+        $touchesMpesa = false;
         foreach ($keys as $key) {
-            $key = (string) $key;
+            if (str_starts_with((string) $key, 'mpesa_')) {
+                $touchesMpesa = true;
+                break;
+            }
+        }
 
-            // M-PesaConfig and NotificationConfig are ported with their own
-            // groups. Until then nothing caches them, so there is nothing to
-            // invalidate - Settings::forget() above is the whole job.
-            unset($key);
+        if ($touchesMpesa) {
+            MpesaConfig::invalidate();
         }
     }
 }

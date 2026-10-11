@@ -65,19 +65,24 @@ function compareShape(label, a, b, { ignore = [] } = {}) {
   return problems;
 }
 
-async function probe(base, token, path) {
+async function probe(base, token, path, method = 'GET', body = undefined) {
+  const headers = { Authorization: `Bearer ${token}` };
+  if (body) headers['Content-Type'] = 'application/json';
+
   const res = await fetch(`${base}${path}`, {
-    headers: { Authorization: `Bearer ${token}` },
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
   });
   const text = await res.text();
-  let body = null;
-  try { body = JSON.parse(text); } catch { /* not JSON */ }
+  let json = null;
+  try { json = JSON.parse(text); } catch { /* not JSON */ }
   return {
     status: res.status,
-    body,
+    body: json,
     text,
-    keys: body && typeof body === 'object' ? Object.keys(body) : null,
-    errorText: body?.error ?? null,
+    keys: json && typeof json === 'object' ? Object.keys(json) : null,
+    errorText: json?.error ?? null,
   };
 }
 
@@ -96,6 +101,7 @@ try {
 }
 
 const cases = [
+  // [method, path, body]
   ['GET', '/api/members'],
   ['GET', '/api/members/dashboard'],           // wrong token type: expect 403 from both
   ['GET', '/api/members/registrations'],
@@ -114,12 +120,15 @@ const cases = [
   ['GET', '/api/settings'],                   // admin: the masked view
   ['GET', '/api/settings/public'],            // no token needed
   ['GET', '/api/settings/about'],
+  ['GET', '/api/mpesa/status'],
+  // The callbacks are public in both backends, and must answer the same thing.
+  ['POST', '/api/mpesa/validation', {}],
   ['GET', '/api/ledger'],                     // still unported: PHP 501 vs node 200 - see below
 ];
 
-for (const [method, path] of cases) {
-  const php = await probe(PHP, phpToken, path);
-  const node = await probe(NODE, nodeToken, path);
+for (const [method, path, body] of cases) {
+  const php = await probe(PHP, phpToken, path, method, body);
+  const node = await probe(NODE, nodeToken, path, method, body);
 
   // A 501 means the group is not ported yet. That is a known, deliberate
   // difference and must not be reported as a parity failure - but it is worth
