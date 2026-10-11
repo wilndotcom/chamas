@@ -13,6 +13,7 @@ use TheTeam\Utils\Identity;
 use TheTeam\Utils\MpesaConfig;
 use TheTeam\Utils\Settings;
 use TheTeam\Utils\SettingsSchema;
+use TheTeam\Utils\Phone;
 
 /**
  * Settings: reading, validating and saving them.
@@ -88,18 +89,46 @@ final class SettingsController
     /**
      * Cleans a typed till number, or returns null when it cannot be one.
      *
-     * Spaces are stripped because they are how people group digits when they
-     * read a number off a till receipt, and a value with a space in it would be
-     * rejected by Daraja rather than by us. Letters and wrong lengths are left
-     * to fail here, where the message can say what is wrong, rather than at
-     * Safaricom, where the operator just sees "Bad Request".
+     * Every way Safaricom writes one is accepted, because the operator is copying
+     * it off something - a till receipt, a confirmation message, the Daraja
+     * portal - and each of those spaces and hyphens it differently. Spaces, a
+     * leading + and hyphens are all removed before the number is judged.
+     *
+     * Letters and wrong lengths are refused here, where the message can say what
+     * is wrong, rather than at Safaricom, where the operator just sees
+     * "Bad Request".
+     *
+     * A leading zero is kept rather than stripped. Safaricom issues shortcodes
+     * without one, so "0744333" is very likely a mistyped "744333" - but guessing
+     * which was meant is exactly the quiet correction that sends a group's money
+     * to the wrong place. It is flagged instead.
      */
     private static function normaliseTill(mixed $value): ?string
     {
-        $digits = preg_replace('/\s+/', '', trim((string) $value));
+        $digits = preg_replace('/[\s+-]+/', '', trim((string) $value));
 
         if ($digits === null || !preg_match('/^\d{5,10}$/', $digits)) {
             return null;
+        }
+
+        /*
+         * A Kenyan mobile number is not a till.
+         *
+         * Ten digits starting with a zero is exactly the shape of a member's
+         * phone number, and it sits inside the range a till could be, so a
+         * member's number pasted here would be accepted silently - and the group
+         * would be collecting against a number that is nobody's till.
+         *
+         * Worth catching rather than guessing at: this is an obvious slip into
+         * the wrong field, not a mistyped digit.
+         */
+        if (Phone::normalise($digits) !== null) {
+            Response::error(
+                'That is a phone number, not a till number. The till is the M-Pesa paybill or '
+                . 'shortcode Safaricom gave you - usually 5 to 7 digits, and not starting '
+                . 'with a zero.',
+                400
+            );
         }
 
         return $digits;
@@ -137,6 +166,23 @@ final class SettingsController
                     . 'or spaces. Safaricom will refuse anything else.',
                     400
                 );
+            }
+
+            /*
+             * A till Safaricom has never confirmed is treated as unproven, however
+             * old it was. Daraja accepts a prompt against a shortcode it has never
+             * heard of and hands back a checkout id, so a saved number is not
+             * evidence that the number works - only a payment that came back from
+             * Safaricom is.
+             *
+             * Recording that separately is what lets the operator change the till
+             * and know whether the change has been proven yet, instead of
+             * assuming a green tick means money will arrive.
+             */
+            $previous = (string) (Settings::get('mpesa_shortcode') ?? '');
+
+            if (trim($previous) !== $till) {
+                Settings::put('mpesa_till_verified', '');
             }
 
             $values['mpesa_shortcode'] = $till;

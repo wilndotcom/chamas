@@ -47,6 +47,21 @@ const StkReadiness = () => {
     && /localhost|127\.0\.0\.1/.test(state.callback_url || '');
   const missingKeys = state && !state.error && !state.configured;
 
+  /*
+   * "Configured" and "works" are different claims, and only the second one is
+   * worth anything to an operator collecting money. Daraja accepts a prompt
+   * against a shortcode it has never heard of and answers with a checkout id,
+   * so a prompt going out proves nothing about the number - the first payment
+   * through it is where a wrong till is discovered, and by then a member is
+   * paying into a number nobody is watching.
+   *
+   * So this says "not confirmed yet" rather than showing green, and says what
+   * confirming it takes.
+   */
+  const tillConfirmed = state && !state.error && state.till_verified;
+  const tillMismatch = state && !state.error && state.till_last_seen
+    && state.till_last_seen !== state.values?.shortcode;
+
   return (
     <div className="gateway-action">
       {state && !state.error && (
@@ -59,7 +74,14 @@ const StkReadiness = () => {
           </div>
           <dl className="mpesa-facts">
             <dt>{t('mpesa.factShortcode')}</dt>
-            <dd><code>{state.values?.shortcode || '-'}</code></dd>
+            <dd>
+              <code>{state.values?.shortcode || '-'}</code>
+              <span className={tillConfirmed ? 'mpesa-ok' : 'mpesa-unproven'}>
+                {tillConfirmed
+                  ? t('mpesa.tillConfirmed')
+                  : t('mpesa.tillUnconfirmed')}
+              </span>
+            </dd>
             <dt>{t('mpesa.factCallback')}</dt>
             <dd>
               <code>{state.callback_url || t('mpesa.factCallbackMissing')}</code>
@@ -69,6 +91,15 @@ const StkReadiness = () => {
             </dd>
           </dl>
 
+          {tillMismatch && (
+            <div className="notice-strip notice-strip--danger" style={{ marginBottom: 10 }}>
+              <AlertTriangle size={15} />
+              <span>
+                {t('mpesa.tillMismatch', { saved: state.values?.shortcode, seen: state.till_last_seen })}
+              </span>
+            </div>
+          )}
+
           {/*
             Saying "unreachable" is not enough on its own. The usual reason is
             that the operator is looking at the app on localhost, where it works
@@ -77,6 +108,9 @@ const StkReadiness = () => {
           */}
           {onLocalhost && <p className="mpesa-explain">{t('mpesa.explainLocalhost')}</p>}
           {missingKeys && <p className="mpesa-explain">{t('mpesa.explainMissingKeys')}</p>}
+          {ready && !tillConfirmed && (
+            <p className="mpesa-explain">{t('mpesa.explainTillUnconfirmed')}</p>
+          )}
 
           <button type="button" className="btn btn-sm btn-secondary" onClick={check}>
             {t('mpesa.checkAgain')}

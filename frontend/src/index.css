@@ -3942,6 +3942,16 @@ tbody tr:last-child td {
   color: var(--danger);
 }
 
+/*
+ * A till that has been saved but never confirmed by Safaricom. Not red - it may
+ * be perfectly correct - but not green either, because a prompt being accepted
+ * proves nothing about the number.
+ */
+.mpesa-unproven {
+  color: var(--warn, #b45309);
+  font-style: italic;
+}
+
 .mpesa-facts {
   display: grid;
   grid-template-columns: auto 1fr;

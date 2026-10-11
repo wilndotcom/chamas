@@ -81,6 +81,30 @@ final class Settings
     }
 
     /**
+     * Saves one value and clears the cache.
+     *
+     * For the app writing its own state, rather than an operator filling in a
+     * form. Nothing here is validated against the schema on purpose: the values
+     * written this way are facts the app has just observed - which till
+     * Safaricom actually charged - and refusing them would throw away evidence
+     * of a misconfiguration, which is the one thing worth keeping.
+     *
+     * Goes through the cache rather than around it, so a value written and read
+     * in the same request agrees with itself.
+     */
+    public static function put(string $key, string $value): void
+    {
+        Database::run(
+            'INSERT INTO settings (setting_key, setting_value, updated_by)
+             VALUES (?, ?, NULL)
+             ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)',
+            [$key, $value]
+        );
+
+        self::forget();
+    }
+
+    /**
      * Clears the cache after a write.
      *
      * Called whenever settings change. Without it an admin who changes the

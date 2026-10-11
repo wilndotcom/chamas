@@ -11,6 +11,7 @@ use TheTeam\Response;
 use TheTeam\Utils\MpesaConfig;
 use TheTeam\Utils\Notifier;
 use TheTeam\Utils\Phone;
+use TheTeam\Utils\Settings;
 
 /**
  * M-Pesa: sending STK prompts and receiving what Safaricom sends back.
@@ -378,6 +379,21 @@ final class MpesaController
                 'source' => $config['source'],
                 'callback_url' => $config['callbackUrl'] ?: null,
 
+                /*
+                 * Whether this till has actually been seen working.
+                 *
+                 * Separate from `configured`, which only means the keys are
+                 * present. Daraja accepts a prompt against any shortcode and
+                 * answers with a checkout id, so a till number being saved is no
+                 * evidence that it works - only a payment Safaricom confirmed
+                 * against it is. Reporting the two separately is what lets an
+                 * operator change the till and know whether the change has been
+                 * proven, instead of reading a green tick as "money will arrive".
+                 */
+                'till_verified' => self::tillIsVerified((string) ($config['shortcode'] ?? '')),
+                'till_reported_by_safaricom' => Settings::get('mpesa_till_verified') ?: null,
+                'till_last_seen' => Settings::get('mpesa_till_seen') ?: null,
+
                 // Whether Safaricom could deliver a confirmation at all. Shown in
                 // Settings because in production it is the difference between a
                 // payment being recorded and a payment vanishing.
@@ -418,6 +434,7 @@ final class MpesaController
                 $amount = null;
                 $receipt = null;
                 $phone = null;
+                $shortcodeSeen = null;
 
                 foreach ($items as $item) {
                     switch ($item['Name'] ?? '') {
@@ -430,8 +447,27 @@ final class MpesaController
                         case 'PhoneNumber':
                             $phone = $item['Value'] ?? null;
                             break;
+
+                        /*
+                         * The till Safaricom actually charged the money against.
+                         *
+                         * The only trustworthy evidence that a till number works.
+                         * Daraja accepts a prompt against a shortcode it has never
+                         * heard of and answers with a checkout id, so a prompt
+                         * going out proves nothing about the number - a member can
+                         * still be staring at a payment to the wrong till.
+                         *
+                         * The value comes back with a leading apostrophe on some
+                         * deployments, hence the strip.
+                         */
+                        case 'BusinessShortCode':
+                        case 'BusinessShortcode':
+                            $shortcodeSeen = ltrim(trim((string) ($item['Value'] ?? '')), "'");
+                            break;
                     }
                 }
+
+                self::verifyShortcode($shortcodeSeen, $receipt);
 
                 if ($checkoutId !== null) {
                     Database::run(
@@ -592,6 +628,66 @@ final class MpesaController
     }
 
     /**
+ * Whether Safaricom has confirmed a payment against this exact till.
+ *
+ * Leading zeros are ignored on both sides, because Safaricom does not always
+ * quote the shortcode character-for-character as it was typed.
+ */
+private static function tillIsVerified(string $configured): bool
+{
+    $seen = trim((string) (Settings::get('mpesa_till_verified') ?? ''));
+
+    return $configured !== '' && $seen !== ''
+        && ltrim($seen, '0') === ltrim($configured, '0');
+}
+
+/**
+ * Records what Safaricom says the till is, and shouts when it disagrees.
+ *
+ * Safaricom quotes the till it actually charged the money against in every
+ * confirmation, and that is the only honest evidence that a till number works.
+ * A prompt being accepted proves nothing: Daraja takes a shortcode it has never
+ * heard of and still hands back a checkout id, so the operator sees success
+ * while their members are one tap from paying into a number nobody is watching.
+ *
+ * Two outcomes:
+ *
+ *   it matches   the till is recorded as verified, and the panel stops asking
+ *   it differs   logged loudly. Members' money went somewhere other than the
+ *                number this app thinks it is using, which is not something an
+ *                operator could discover on their own.
+ *
+ * Safe to call on every confirmation. Safaricom does not always quote a
+ * shortcode, and its absence is not evidence against the till.
+ */
+private static function verifyShortcode(?string $seen, ?string $receipt): void
+{
+    if ($seen === null || $seen === '') {
+        return;
+    }
+
+    try {
+        $configured = trim((string) (MpesaConfig::get()['shortcode'] ?? ''));
+
+        // Compared without leading zeros, because Safaricom quotes the shortcode
+        // it used and that is not always character-for-character what was typed.
+        if ($configured !== ''
+            && ltrim($seen, '0') === ltrim($configured, '0')) {
+            Settings::put('mpesa_till_verified', $seen);
+
+            return;
+        }
+
+        Settings::put('mpesa_till_seen', $seen);
+        Log::warn("[mpesa] TILL MISMATCH on receipt {$receipt}: this app is set to "
+            . "{$configured} but Safaricom charged {$seen}. Members' money is going to a "
+            . 'different till than the one recorded here.');
+    } catch (\Throwable $e) {
+        Log::warn('[mpesa] could not check the till: ' . $e->getMessage());
+    }
+}
+
+/**
      * Works out which member a successful payment belongs to.
      *
      * Two candidate numbers, tried in order, because either one alone can fail:

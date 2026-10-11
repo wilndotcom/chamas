@@ -77,19 +77,42 @@ console.log('\n=== a mistyped till is refused here, not by Safaricom ===\n');
 console.log('\n=== a valid till writes both stored settings together ===\n');
 
 {
-  const spaces = '4005 931';
-  const res = await api(admin, 'PUT', '/api/settings', { values: { mpesa_till: spaces } });
-  check('a till typed with a space is accepted', res.status === 200, res.text.slice(0, 140));
+  const real = (await api(admin, 'GET', '/api/settings')).body?.mpesa_till;
 
-  const st = (await api(admin, 'GET', '/api/mpesa/status')).body;
-  check('the spaces are stripped', st.values.shortcode === '4005931',
-    `got "${st.values.shortcode}"`);
-  check('the paybill follows the shortcode', st.values.paybill === st.values.shortcode,
-    `shortcode ${st.values.shortcode}, paybill ${st.values.paybill}`);
+  try {
+    // Deliberately different from the group's real number: writing the real one
+    // back afterwards would be a no-op and prove nothing.
+    const spaces = '4005 931';
 
-  const form = await api(admin, 'GET', '/api/settings');
-  check('and the single box shows it back', form.body?.mpesa_till === '4005931',
-    `got "${form.body?.mpesa_till}"`);
+    const res = await api(admin, 'PUT', '/api/settings', { values: { mpesa_till: spaces } });
+    check('a till typed with a space is accepted', res.status === 200, res.text.slice(0, 140));
+
+    const st = (await api(admin, 'GET', '/api/mpesa/status')).body;
+    check('the spaces are stripped', st.values.shortcode === '4005931',
+      `got "${st.values.shortcode}"`);
+    check('the paybill follows the shortcode', st.values.paybill === st.values.shortcode,
+      `shortcode ${st.values.shortcode}, paybill ${st.values.paybill}`);
+
+    const form = await api(admin, 'GET', '/api/settings');
+    check('and the single box shows it back', form.body?.mpesa_till === '4005931',
+      `got "${form.body?.mpesa_till}"`);
+  } finally {
+    /*
+      * Put the group's real till back.
+      *
+      * This block used to leave 4005931 saved whatever the group had chosen,
+      * which silently undid a till change and cost a live prompt while it was
+      * being investigated. A test that writes real configuration has to restore
+      * it, on every path out including a failure.
+      */
+    if (real) {
+      const back = await api(admin, 'PUT', '/api/settings', { values: { mpesa_till: real } });
+      const now = (await api(admin, 'GET', '/api/settings')).body?.mpesa_till;
+
+      check("the group's own till is put back", back.status === 200 && now === real,
+        `till is now ${now}, was ${real}`);
+    }
+  }
 }
 
 console.log('\n=== the callback is worked out, not typed ===\n');
