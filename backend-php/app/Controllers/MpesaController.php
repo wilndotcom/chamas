@@ -87,21 +87,24 @@ final class MpesaController
             if ($callbackPlaceholder) {
                 if ($config['env'] === 'production') {
                     Response::json([
-                        'error' => 'MPESA_CALLBACK_URL is missing or still the sample value ('
-                            . ($config['callbackUrl'] ?: 'unset')
-                            . ') and this server is in PRODUCTION. Safaricom must be able to reach '
-                            . 'it over the internet, and it cannot reach localhost. Set your real '
-                            . 'domain in Settings -> M-Pesa, or in backend/.env.production.',
+                        'error' => 'You are sending this from '
+                            . ($config['callbackUrl'] ?: 'an address Safaricom cannot reach')
+                            . ', which Safaricom has no route to. It would take the payment and the '
+                            . 'confirmation would go nowhere, so the money would be taken and '
+                            . 'never recorded.'
+                            . "\n\nOpen the app through a public https address instead - a tunnel "
+                            . 'or your own domain - and send the prompt from there. The app works '
+                            . 'out the confirmation address by itself, so there is nothing to set.',
                         'field' => 'mpesa_callback_url',
                     ], 400);
                 }
 
-                $callbackWarning = 'Heads up: the callback URL is still the sample value ('
-                    . ($config['callbackUrl'] ?: 'unset')
-                    . '), so Safaricom will not be able to deliver the payment confirmation back '
-                    . 'to this server. The STK prompt will still be sent and you will get a '
-                    . 'checkout ID, but the transaction will stay "pending" here. This is fine '
-                    . 'for sandbox testing.';
+                $callbackWarning = 'Heads up: you are sending this from '
+                    . ($config['callbackUrl'] ?: 'an address Safaricom cannot reach')
+                    . ', so the confirmation cannot come back to this server. The STK prompt '
+                    . 'will still be sent and you will get a checkout ID, but the transaction '
+                    . 'will stay "pending" here and the member will not be credited. Send it '
+                    . 'from a public https address instead.';
             }
 
             try {
@@ -247,12 +250,14 @@ final class MpesaController
              */
             if ($config['env'] === 'production' && $callbackPlaceholder) {
                 Response::json([
-                    'error' => 'The M-Pesa environment is set to PRODUCTION but the callback URL '
-                        . 'is still the sample value (' . ($config['callbackUrl'] ?: 'unset')
-                        . '). Safaricom could send a live payment request to a real shortcode and '
-                        . 'the confirmation would go nowhere, so the money would be taken and never '
-                        . 'recorded. Set a real public https callback URL in Settings first, or '
-                        . 'switch the environment back to sandbox to test.',
+                    'error' => 'You are sending this from '
+                        . ($config['callbackUrl'] ?: 'an address Safaricom cannot reach')
+                        . ', which Safaricom has no route to. It would take the payment and the '
+                        . 'confirmation would go nowhere, so the money would be taken and never '
+                        . 'recorded.'
+                        . "\n\nOpen the app through a public https address instead - a tunnel or "
+                        . 'your own domain - and send the prompt from there. The app works out '
+                        . 'the confirmation address by itself, so there is nothing to set.',
                     'field' => 'mpesa_callback_url',
                 ], 400);
             }

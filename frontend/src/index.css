@@ -3966,6 +3966,12 @@ tbody tr:last-child td {
   margin: 0;
 }
 
+/* What to do about a readiness failure, as opposed to the failure itself. */
+.mpesa-explain {
+  margin: 0 0 10px;
+  color: var(--text-muted);
+}
+
 .gateway-action-result code {
   display: block;
   margin-top: 5px;

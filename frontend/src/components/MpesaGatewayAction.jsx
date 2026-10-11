@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { Send, Loader2, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
@@ -23,15 +23,15 @@ const MpesaGatewayAction = ({ gatewayKey }) => {
  * Reads the one thing that decides whether STK works: can Safaricom reach us,
  * and have we been given keys at all.
  *
- * Shown before any button so an operator can see what is missing instead of
- * pressing Send test prompt and being refused.
+ * Loaded on mount rather than behind a button. The state it reports does not
+ * change until something is saved, and an operator who has to press a button to
+ * find out whether a prompt will work will press the prompt instead.
  */
 const StkReadiness = () => {
   const { t } = useI18n();
   const [state, setState] = useState(null);
 
-  const check = async (e) => {
-    e.preventDefault();
+  const check = async () => {
     try {
       const { data } = await axios.get('/api/mpesa/status');
       setState(data);
@@ -40,16 +40,15 @@ const StkReadiness = () => {
     }
   };
 
+  useEffect(() => { check(); }, []);
+
   const ready = state && state.configured && state.callback_reachable;
+  const onLocalhost = state && !state.error
+    && /localhost|127\.0\.0\.1/.test(state.callback_url || '');
+  const missingKeys = state && !state.error && !state.configured;
 
   return (
     <div className="gateway-action">
-      {!state && (
-        <button type="button" className="btn btn-sm btn-secondary" onClick={check}>
-          <CheckCircle2 size={14} /> {t('mpesa.checkSetup')}
-        </button>
-      )}
-
       {state && !state.error && (
         <div className="gateway-action-result ok" style={{ marginTop: 8 }}>
           <div className="mpesa-readiness">
@@ -69,6 +68,25 @@ const StkReadiness = () => {
               </span>
             </dd>
           </dl>
+
+          {/*
+            Saying "unreachable" is not enough on its own. The usual reason is
+            that the operator is looking at the app on localhost, where it works
+            perfectly for them and is invisible to Safaricom - so the only way
+            to get unstuck is to be told what to do next.
+          */}
+          {onLocalhost && <p className="mpesa-explain">{t('mpesa.explainLocalhost')}</p>}
+          {missingKeys && <p className="mpesa-explain">{t('mpesa.explainMissingKeys')}</p>}
+
+          <button type="button" className="btn btn-sm btn-secondary" onClick={check}>
+            {t('mpesa.checkAgain')}
+          </button>
+        </div>
+      )}
+
+      {state && state.error && (
+        <div className="gateway-action-result bad" style={{ marginTop: 8 }}>
+          <p style={{ margin: 0 }}>{t('mpesa.readFailed')}</p>
           <button type="button" className="btn btn-sm btn-secondary" onClick={check}>
             {t('mpesa.checkAgain')}
           </button>
