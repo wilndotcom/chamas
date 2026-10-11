@@ -242,6 +242,91 @@ final class MpesaConfig
     }
 
     /**
+     * Remembers a public address so the app keeps working from anywhere.
+     *
+     * The problem this solves is a loop. The callback is worked out from
+     * whichever address the operator is looking at, so browsing at localhost
+     * always produces a localhost callback, which is never deliverable, which
+     * blocks the prompt, and the only way out would be to change where they
+     * browse. Saving the address removes the trap: a prompt sent from localhost
+     * is confirmed back through the public address and lands on the same app.
+     *
+     * Tunnels and their addresses change, so learning it rather than being told
+     * it is what makes this hold up: open the app once through a new address and
+     * it re-pins itself, no visit to a settings screen.
+     *
+     * Deliberately narrow about when it will write:
+     *
+     *   - Only over a forwarded https connection. An admin looking at localhost
+     *     must never be taken as the public address; that is the trap.
+     *   - Only when the current callback is unusable, or was one this method
+     *     learned. A callback somebody set deliberately is never overwritten,
+     *     because there is no way to tell a considered choice from a stale one.
+     *
+     * Only ever called from routes that already require an admin token.
+     * Failures are swallowed: this is a convenience, and losing it must never
+     * stop a payment being sent.
+     */
+    public static function rememberPublicAddress(): void
+    {
+        $forwarded = strtolower(trim(explode(
+            ',',
+            (string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')
+        )[0]));
+
+        if ($forwarded !== 'https') {
+            return;
+        }
+
+        $base = self::deriveCallback();
+
+        if ($base === null) {
+            return;
+        }
+
+        try {
+            $learned = $base . '/api/mpesa/callback';
+
+            /*
+             * Compared against what is stored, not against what is resolved.
+             *
+             * When this request arrives through the tunnel, the resolved value
+             * already is the tunnel - so comparing resolved-against-derived
+             * would always match and never write anything, and the address would
+             * be forgotten the moment the operator went back to localhost.
+             */
+            $stored = trim((string) (Settings::get('mpesa_callback_url') ?? ''));
+
+            if ($stored === $learned) {
+                return;
+            }
+
+            // A working address somebody chose is never overwritten: there is no
+            // way to tell a considered setting from a stale one, so the safe
+            // reading is to leave it alone.
+            if (self::usable($stored) && !self::isPlaceholder($stored)) {
+                return;
+            }
+
+            Database::run(
+                'INSERT INTO settings (setting_key, setting_value, updated_by)
+                 VALUES (?, ?, NULL)
+                 ON DUPLICATE KEY UPDATE
+                   setting_value = VALUES(setting_value),
+                   updated_by = NULL',
+                ['mpesa_callback_url', $learned]
+            );
+
+            // Both caches: the value was just written, and anything that already
+            // read it in this request would otherwise report the old one.
+            Settings::forget();
+            self::invalidate();
+        } catch (\Throwable $e) {
+            Log::warn('[mpesa] could not remember the public address: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Whether a callback URL could actually receive a Safaricom POST.
      *
      * Registering a placeholder is worse than not registering at all: Safaricom

@@ -82,6 +82,21 @@ final class MpesaController
              * anything was sent.
              */
             $callbackPlaceholder = !MpesaConfig::callbackReachable($config);
+            /*
+             * Learns the public address if this request came through one.
+             *
+             * Called before the guard, because the guard is what an operator hits
+             * when they work at localhost: the callback is derived from wherever
+             * they are looking, so localhost always yields a callback Safaricom
+             * cannot reach, and the prompt is refused with no way forward except
+             * changing where they browse. Visiting the app through a tunnel once
+             * records the address, after which the prompt can be sent from
+             * anywhere. Does nothing when the request did not arrive over https,
+             * and nothing when a working callback was set deliberately.
+             */
+            MpesaConfig::rememberPublicAddress();
+            $config = MpesaConfig::get();
+            $callbackPlaceholder = !MpesaConfig::callbackReachable($config);
             $callbackWarning = null;
 
             if ($callbackPlaceholder) {
@@ -237,6 +252,19 @@ final class MpesaController
             $callbackPlaceholder = !MpesaConfig::callbackReachable($config);
 
             /*
+             * Learns the public address if this request came through one.
+             *
+             * Called before the guard, so an operator who opens the app through a
+             * tunnel once and then works at localhost is not stuck: the address is
+             * remembered and the prompt can be sent from anywhere afterwards.
+             * Does nothing when the request did not arrive over https, and
+             * nothing when a working callback was set deliberately.
+             */
+            MpesaConfig::rememberPublicAddress();
+            $config = MpesaConfig::get();
+            $callbackPlaceholder = !MpesaConfig::callbackReachable($config);
+
+            /*
              * Refused in production without a real callback, exactly as stkPush is.
              *
              * This guard was missing here in an earlier version, so the test button
@@ -312,6 +340,18 @@ final class MpesaController
      */
     public static function mpesaStatus(Request $r): void
     {
+        /*
+         * Looking at this screen through a public address is the clearest signal
+         * an operator is ever going to give that they are reachable from the
+         * internet, so this is where the app learns it.
+         *
+         * Without it an operator who works at localhost - where the callback is
+         * derived as localhost, and every prompt is refused - has to be told to
+         * go and look at the app somewhere else first, which is a strange thing
+         * to require of somebody trying to send a payment prompt.
+         */
+        MpesaConfig::rememberPublicAddress();
+
         try {
             $config = MpesaConfig::get(true);
 
