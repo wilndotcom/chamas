@@ -10,6 +10,7 @@ use TheTeam\Log;
 use TheTeam\Request;
 use TheTeam\Response;
 use TheTeam\Utils\LoanMath;
+use TheTeam\Utils\Phone;
 
 /**
  * Members, their financial history and their registrations.
@@ -254,6 +255,55 @@ final class MemberController
 
     // ---------------------------------------------------------------- writes
 
+    /**
+     * Puts a member's phone number into the one form the app stores.
+     *
+     * Members type their number from a till receipt, a phone contact, or an
+     * M-Pesa confirmation, and each of those is written differently: 0712345678,
+     * +254712345678, 0712 345 678. All of them are accepted and all of them are
+     * stored as 0712345678, so one member is one member however they spelled it.
+     *
+     * $label names the field in the error, because an emergency contact's number
+     * being wrong is a different problem from the member's own being wrong.
+     */
+    private static function storedPhone($phone, string $label): string
+    {
+        $stored = Phone::toMemberPhone($phone);
+
+        if ($stored === null) {
+            Response::error(
+                'That ' . $label . ' is not a Kenyan mobile number. Use the local form '
+                . '(0712345678) or the international one (+254712345678).',
+                400
+            );
+        }
+
+        return $stored;
+    }
+
+    /**
+     * Finds a member by phone number, however either side is written.
+     *
+     * Comparing the stored column as text only works while every number was saved
+     * in the same shape, and that is not something the app controls: a number
+     * typed as "+254712345678" sits beside one typed as "0712345678", and a text
+     * comparison calls them two different people. Registering the same person
+     * twice does not just block a form - it splits one member's payments across
+     * two rows, so neither balance is right.
+     */
+    private static function memberWithPhone(string $phone): ?array
+    {
+        $wanted = Phone::normalise($phone);
+
+        foreach (Database::all('SELECT id, phone FROM members') as $member) {
+            if (Phone::normalise($member['phone']) === $wanted) {
+                return $member;
+            }
+        }
+
+        return null;
+    }
+
     /** Creates a member directly. Active immediately, unlike a self-registration. */
     public static function createMember(Request $r): void
     {
@@ -261,14 +311,15 @@ final class MemberController
             $body = $r->body();
 
             $fullName = $body['full_name'] ?? null;
-            $phone = $body['phone'] ?? null;
             $password = $body['password'] ?? null;
 
-            if (!$fullName || !$phone || !$password) {
-                Response::error('Full name, phone, and password are required.', 400);
+            if (!$fullName || !$password) {
+                Response::error('Full name and password are required.', 400);
             }
 
-            $existing = Database::one('SELECT id FROM members WHERE phone = ?', [$phone]);
+            $phone = self::storedPhone($body['phone'] ?? null, 'phone number');
+
+            $existing = self::memberWithPhone($phone);
             if ($existing !== null) {
                 Response::error('Phone number already registered.', 409);
             }
@@ -289,7 +340,9 @@ final class MemberController
                     !empty($body['id_number']) ? $body['id_number'] : null,
                     password_hash($password, PASSWORD_BCRYPT, ['cost' => self::BCRYPT_COST]),
                     !empty($body['emergency_contact_name']) ? $body['emergency_contact_name'] : null,
-                    !empty($body['emergency_contact_phone']) ? $body['emergency_contact_phone'] : null,
+                    !empty($body['emergency_contact_phone'])
+                        ? Phone::toMemberPhone($body['emergency_contact_phone'])
+                        : null,
                 ]
             );
 
@@ -329,7 +382,9 @@ final class MemberController
                 [
                     $body['full_name'] ?? null,
                     $body['email'] ?? null,
-                    $body['phone'] ?? null,
+                    $body['phone']
+                        ? self::storedPhone($body['phone'], 'phone number')
+                        : null,
                     $body['id_number'] ?? null,
                     $body['status'] ?? null,
                     $body['emergency_contact_name'] ?? null,

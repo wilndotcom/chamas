@@ -9,6 +9,7 @@ use TheTeam\Database;
 use TheTeam\Log;
 use TheTeam\Request;
 use TheTeam\Response;
+use TheTeam\Utils\Phone;
 
 /**
  * Authentication, registration and impersonation.
@@ -122,10 +123,28 @@ final class AuthController
             Response::error('Phone number and password are required.', 400);
         }
 
-        $member = Database::one(
-            'SELECT * FROM members WHERE phone = ? LIMIT 1',
-            [trim($phone)]
-        );
+        /*
+         * Members sign in with the number they know themselves by, and everyone
+         * writes it differently: the phone contact says +254712345678, the till
+         * receipt says 0712 345 678, and the app stores 0712345678. Comparing the
+         * typed text to the stored column would lock out a member for the spelling
+         * of their own number, so both sides are reduced to digits first.
+         *
+         * Scanned rather than queried, because the stored shape depends on when
+         * the row was written - older rows predate this and can still hold
+         * "+254..." - and SQL cannot compare two columns through a conversion.
+         */
+        $wanted = Phone::normalise($phone);
+        $member = null;
+
+        if ($wanted !== null) {
+            foreach (Database::all('SELECT * FROM members') as $candidate) {
+                if (Phone::normalise($candidate['phone']) === $wanted) {
+                    $member = $candidate;
+                    break;
+                }
+            }
+        }
 
         if ($member === null) {
             password_verify($password, '$2y$12$usesomesillystringforsalt0123456789abcdefghijklmnopq');

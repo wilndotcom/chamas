@@ -405,7 +405,12 @@ final class MpesaController
                     $amount,
                     $receipt,
                     $phone,
-                    'mpesa_stk'
+                    'mpesa_stk',
+                    // The checkout id is the join between the prompt this server
+                    // sent and the confirmation Safaricom posts back, and it is
+                    // what lets the payer be identified even when the callback
+                    // carries no usable number of its own.
+                    is_string($checkoutId) ? $checkoutId : null
                 );
 
                 if ($recorded['matched'] && empty($recorded['duplicate'])) {
@@ -457,21 +462,16 @@ final class MpesaController
         $amount,
         $mpesaReceipt,
         $phone,
-        string $paymentMethod
+        string $paymentMethod,
+        ?string $checkoutId = null
     ): array {
-        $memberPhone = Phone::toMemberPhone($phone);
-
-        if ($memberPhone === null) {
-            return ['matched' => false, 'reason' => 'Unusable phone number: ' . $phone];
-        }
-
-        $member = Database::one(
-            "SELECT id, full_name, phone FROM members WHERE phone = ? AND status = 'active'",
-            [$memberPhone]
-        );
+        $member = self::findPayer($phone, $checkoutId);
 
         if ($member === null) {
-            return ['matched' => false, 'reason' => 'No active member with phone ' . $memberPhone];
+            return [
+                'matched' => false,
+                'reason' => self::describeUnmatched($phone, $checkoutId),
+            ];
         }
 
         // Already recorded? A retry must not credit the member twice.
@@ -544,6 +544,83 @@ final class MpesaController
             'memberId' => $member['id'],
             'contributionId' => $contributionId,
         ];
+    }
+
+    /**
+     * Works out which member a successful payment belongs to.
+     *
+     * Two candidate numbers, tried in order, because either one alone can fail:
+     *
+     *   1. The number this server sent the prompt to, read back from the
+     *      transaction by its checkout id. This is the most reliable, because it
+     *      is ours: we wrote it, we know its format, and it cannot be the till
+     *      number even when Safaricom echoes the shortcode instead of the payer.
+     *   2. The PhoneNumber in the callback metadata. This is the only one
+     *      available when a confirmation arrives for a payment this server never
+     *      started - a member paying straight to the till - and it arrives
+     *      written in whatever shape Safaricom felt like.
+     *
+     * A member is matched on the number reduced to digits, not on the stored
+     * column as text. Comparing text only works while every member happens to
+     * have been saved in the same shape, and the first "+254712345678" saved
+     * beside a "0712345678" would quietly stop matching - that member keeps
+     * paying, and their money keeps arriving with nobody credited for it.
+     */
+    private static function findPayer($callbackPhone, ?string $checkoutId): ?array
+    {
+        $candidates = [];
+
+        // Ours first. The row is written before the prompt is sent, so it exists.
+        if ($checkoutId !== null && $checkoutId !== '') {
+            $sent = Database::one(
+                'SELECT phone FROM mpesa_transactions WHERE transaction_id = ?',
+                [$checkoutId]
+            );
+
+            if ($sent !== null) {
+                $candidates[] = ['phone' => $sent['phone'], 'from' => 'the prompt this server sent'];
+            }
+        }
+
+        if (trim((string) $callbackPhone) !== '') {
+            $candidates[] = ['phone' => $callbackPhone, 'from' => 'the callback'];
+        }
+
+        $active = Database::all("SELECT id, full_name, phone FROM members WHERE status = 'active'");
+
+        foreach ($candidates as $candidate) {
+            $wanted = Phone::normalise($candidate['phone']);
+
+            if ($wanted === null) {
+                continue;
+            }
+
+            foreach ($active as $member) {
+                if (Phone::normalise($member['phone']) === $wanted) {
+                    Log::startup("[mpesa] matched member {$member['id']} on {$candidate['from']}");
+
+                    return $member;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Says why a payment could not be credited, in terms an operator can act on.
+     *
+     * Logged loudly rather than swallowed: this is the one case where real money
+     * has arrived and no member is recorded for it.
+     */
+    private static function describeUnmatched($callbackPhone, ?string $checkoutId): string
+    {
+        $numbers = array_values(array_filter([
+            $checkoutId ? 'prompt ' . $checkoutId : null,
+            trim((string) $callbackPhone) !== '' ? 'callback ' . $callbackPhone : null,
+        ]));
+
+        return 'no active member has that number (' . implode(', ', $numbers) . ')';
     }
 
     /**
