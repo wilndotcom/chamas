@@ -60,6 +60,17 @@ final class SettingsController
             Response::json([
                 'settings' => $settings,
                 'secret_keys' => SettingsSchema::secretKeys(),
+
+                /*
+                 * The till number, presented as one value.
+                 *
+                 * Stored under two keys because Daraja raises a push against a
+                 * shortcode while the group is known by its till, but Settings
+                 * only ever shows one box. Read from the resolved config rather
+                 * than the raw rows so it shows what is actually in use, including
+                 * a value that came from the server's own environment file.
+                 */
+                'mpesa_till' => MpesaConfig::get()['shortcode'] ?? '',
             ]);
         } catch (\Throwable $e) {
             Log::warn('getAllSettings: ' . $e->getMessage());
@@ -74,12 +85,63 @@ final class SettingsController
      * worse than a failed one, because the operator cannot tell which half stuck.
      * Either every key is written or none is.
      */
+    /**
+     * Cleans a typed till number, or returns null when it cannot be one.
+     *
+     * Spaces are stripped because they are how people group digits when they
+     * read a number off a till receipt, and a value with a space in it would be
+     * rejected by Daraja rather than by us. Letters and wrong lengths are left
+     * to fail here, where the message can say what is wrong, rather than at
+     * Safaricom, where the operator just sees "Bad Request".
+     */
+    private static function normaliseTill(mixed $value): ?string
+    {
+        $digits = preg_replace('/\s+/', '', trim((string) $value));
+
+        if ($digits === null || !preg_match('/^\d{5,10}$/', $digits)) {
+            return null;
+        }
+
+        return $digits;
+    }
+
+    /**
+     * Which value each editable key is currently saved as.
+     *
+     * Only here, not in the settings themselves.
+     */
     public static function updateSettings(Request $r): void
     {
         $values = $r->body()['values'] ?? null;
 
         if (!is_array($values) || $values === [] || array_is_list($values)) {
             Response::error('Send { values: { key: value } }.', 400);
+        }
+
+        /*
+         * The till number is one value that names two stored settings.
+         *
+         * Settings shows a single box because that is what the operator has:
+         * one till. Safaricom raises an STK push against a shortcode, and the
+         * group identifies itself to members by the same number, so asking for
+         * both meant asking for the same digits twice and then hoping they
+         * matched. Splitting here keeps the stored schema unchanged and means
+         * there is no state where the two disagree.
+         */
+        if (array_key_exists('mpesa_till', $values)) {
+            $till = self::normaliseTill($values['mpesa_till']);
+
+            if ($till === null) {
+                Response::error(
+                    'A till or shortcode number is between 5 and 10 digits, with no letters '
+                    . 'or spaces. Safaricom will refuse anything else.',
+                    400
+                );
+            }
+
+            $values['mpesa_shortcode'] = $till;
+            $values['mpesa_paybill'] = $till;
+            unset($values['mpesa_till']);
         }
 
         $keys = array_keys($values);

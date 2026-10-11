@@ -194,6 +194,12 @@ const onMyLanguageChange = async (value) => {
       response.data.settings.forEach(s => {
         formObj[s.setting_key] = s.setting_value;
       });
+
+      // The till box is driven by one resolved value rather than the two rows
+      // behind it, so it shows what is actually in use - including a number that
+      // came from the server's environment file and has no settings row at all.
+      formObj.mpesa_till = response.data.mpesa_till || '';
+
       setForm(formObj);
       setSaved(formObj);
     } catch (error) {
@@ -236,15 +242,13 @@ const onMyLanguageChange = async (value) => {
   'airtel_service_provider_id'
 ];
 
-const MPESA_KEYS = [
-    'mpesa_environment',
-    'mpesa_callback_url',
-    'mpesa_paybill',
-    'mpesa_shortcode',
-    'mpesa_consumer_key',
-    'mpesa_consumer_secret',
-    'mpesa_passkey'
-  ];
+/*
+ * The till number is written to both the shortcode and the paybill setting,
+ * because Safaricom's STK push is raised against a shortcode and the group
+ * identifies itself by the same number as its till. They were two boxes that
+ * had to agree; there is no case where an operator wants them to differ.
+ */
+const TILL_KEYS = ['mpesa_till'];
 
   /*
  * Removed: the standalone "Email sender" card.
@@ -860,98 +864,30 @@ const MPESA_KEYS = [
         <MpesaStatus savedAt={savedAt} />
 
         {/*
-          The environment is chosen before the credentials, deliberately.
+          One field, not seven.
 
-          Picking "production" here points every Daraja call at live Safaricom, so
-          it must not sit in a grid below four key fields where it reads like just
-          another text box. It is a switch between two whole systems.
+          The till number is the only thing an operator actually chooses. The
+          Daraja keys are credentials Safaricom issued once for the whole app,
+          and the callback is a fact about where this app is, not a preference -
+          asking for either meant typing a value that has to be exactly right,
+          and a wrong callback fails silently: Safaricom takes the money and tells
+          nobody. The status block above shows what the server already holds, so
+          a missing key is named instead of sitting as an empty box.
         */}
-        <div className="mpesa-env-switch">
-          <span className="mpesa-env-switch-label">{t('settings.mpesaEnvironment')}</span>
-          <div className="mpesa-env-options" role="radiogroup" aria-label={t('settings.mpesaEnvironment')}>
-            {['sandbox', 'production'].map((value) => (
-              <button
-                key={value}
-                type="button"
-                role="radio"
-                aria-checked={(form.mpesa_environment || 'sandbox') === value}
-                className={`mpesa-env-option${
-                  (form.mpesa_environment || 'sandbox') === value ? ' active' : ''
-                }${value === 'production' ? ' live' : ''}`}
-                onClick={() => setForm({ ...form, mpesa_environment: value })}
-              >
-                <strong>
-                  {value === 'sandbox' ? t('settings.envSandbox') : t('settings.envProduction')}
-                </strong>
-                <span>
-                  {value === 'sandbox'
-                    ? t('settings.envSandboxHint')
-                    : t('settings.envProductionHint')}
-                </span>
-              </button>
-            ))}
-          </div>
-          <small className="field-hint">{t('settings.mpesaEnvironmentNote')}</small>
+        <div className="form-group" style={{ maxWidth: 340 }}>
+          <label>{t('settings.tillNumber')}</label>
+          <input
+            type="text"
+            value={form.mpesa_till || ''}
+            onChange={(e) => setForm({ ...form, mpesa_till: e.target.value.replace(/\s+/g, '') })}
+            placeholder="4005931"
+            inputMode="numeric"
+          />
+          <small className="field-hint">{t('settings.tillNumberHint')}</small>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-          <div className="form-group">
-            <label>{t('settings.paybill')}</label>
-            <input
-              type="text"
-              value={form.mpesa_paybill || ''}
-              onChange={(e) => setForm({ ...form, mpesa_paybill: e.target.value })}
-            />
-          </div>
-          <div className="form-group">
-            <label>{t('settings.shortcode')}</label>
-            <input
-              type="text"
-              value={form.mpesa_shortcode || ''}
-              onChange={(e) => setForm({ ...form, mpesa_shortcode: e.target.value })}
-            />
-          </div>
-          <div className="form-group">
-            <label>{t('settings.consumerKey')}</label>
-            <input
-              type="text"
-              value={form.mpesa_consumer_key || ''}
-              onChange={(e) => setForm({ ...form, mpesa_consumer_key: e.target.value })}
-            />
-          </div>
-          <div className="form-group">
-            <label>{t('settings.consumerSecret')}</label>
-            <input
-              type="password"
-              value={form.mpesa_consumer_secret || ''}
-              onChange={(e) => setForm({ ...form, mpesa_consumer_secret: e.target.value })}
-            />
-          </div>
-          <div className="form-group">
-            <label>{t('settings.passkey')}</label>
-            <input
-              type="password"
-              value={form.mpesa_passkey || ''}
-              onChange={(e) => setForm({ ...form, mpesa_passkey: e.target.value })}
-            />
-          </div>
-          <div className="form-group">
-            <label>{t('settings.callbackUrl')}</label>
-            <input
-              type="url"
-              value={form.mpesa_callback_url || ''}
-              onChange={(e) => setForm({ ...form, mpesa_callback_url: e.target.value })}
-              placeholder="https://yourchama.co.ke/api/mpesa/callback"
-            />
-            <small className="field-hint">
-              {t('settings.callbackNote')}
-              sandbox — the prompt still goes out, but confirmations will not come back. Required
-              before going live, and Safaricom cannot reach localhost.
-            </small>
-          </div>
-        </div>
-        {saveRow(MPESA_KEYS, t('settings.mpesa'))}
-              </div>
+        {saveRow(TILL_KEYS, t('settings.mpesa'))}
+      </div>
             </>
           )}
 
@@ -1072,12 +1008,14 @@ const MPESA_KEYS = [
       );
     }
 
+    // The till number is editable below, so it is deliberately not repeated here as
+    // another read-only line. Everything an operator cannot change is listed, so
+    // that if one of them is missing the panel says which one rather than the
+    // form presenting an unrelated empty box.
     const rows = [
       ['Consumer key', status.values.consumer_key, status.source.consumerKey],
       ['Consumer secret', status.values.consumer_secret, status.source.consumerSecret],
-      ['Shortcode', status.values.shortcode, status.source.shortcode],
       ['STK passkey', status.values.passkey, status.source.passkey],
-      ['Paybill', status.values.paybill, status.source.paybill],
       ['Callback URL', status.callback_url, status.source.callbackUrl]
     ];
 
@@ -1136,7 +1074,15 @@ const MPESA_KEYS = [
               <span className="mpesa-status-label">{label}</span>
               <code>{value || 'not set'}</code>
               <span className={`mpesa-source ${source}`}>
-                {source === 'settings' ? 'saved here' : source === 'env' ? 'from .env' : 'unset'}
+                {source === 'settings'
+                  ? 'saved here'
+                  : source === 'env'
+                    ? 'from .env'
+                    : source === 'this server'
+                      // Derived from the address this page was loaded on, which
+                      // means it cannot be wrong in the way a typed URL can.
+                      ? 'worked out from this address'
+                      : 'not set'}
               </span>
             </li>
           ))}

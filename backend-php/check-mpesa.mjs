@@ -258,7 +258,7 @@ console.log('\n=== the production guard ===\n');
   // has nowhere to send the confirmation. It is exercised by pointing the
   // callback at a placeholder for the length of this block, then putting the
   // operator's real value back - it is never left broken, even if a step throws.
-  const real = (await api(admin, 'GET', '/api/mpesa/status')).body.callback_url;
+  const before = (await api(admin, 'GET', '/api/mpesa/status')).body;
 
   try {
     await api(admin, 'PUT', '/api/settings',
@@ -281,11 +281,31 @@ console.log('\n=== the production guard ===\n');
     const after = (await api(admin, 'GET', '/api/contributions')).body.contributions.length;
     check('nothing was recorded', after === before, `${after - before} contribution(s) appeared`);
   } finally {
-    await api(admin, 'PUT', '/api/settings', { values: { mpesa_callback_url: real } });
-    const back = await api(admin, 'GET', '/api/mpesa/status');
-    check('the real callback is restored afterwards',
-      back.body?.callback_url === real && back.body?.callback_reachable === true,
-      `callback is now ${back.body?.callback_url}`);
+    /*
+      * Only put back a callback that was genuinely deliverable.
+
+      * Saving the address this test server happens to be reached on would leave
+      * a localhost callback behind for the next run, and localhost is exactly
+      * what Safaricom cannot reach - so restoring "what was there" is not the
+      * same as leaving it working.
+      */
+    if (before.callback_reachable && before.callback_url) {
+      await api(admin, 'PUT', '/api/settings', { values: { mpesa_callback_url: before.callback_url } });
+      const back = await api(admin, 'GET', '/api/mpesa/status');
+      check('the real callback is restored afterwards',
+        back.body?.callback_url === before.callback_url && back.body?.callback_reachable === true,
+        `callback is now ${back.body?.callback_url}`);
+    } else {
+      await api(admin, 'PUT', '/api/settings', { values: { mpesa_callback_url: '' } });
+
+      // What matters is the stored value, not the resolved one: on this test
+      // server the app will always work out a localhost callback for itself,
+      // and that is harmless because it is never saved.
+      const row = (await api(admin, 'GET', '/api/settings')).body.settings
+        .find((s) => s.setting_key === 'mpesa_callback_url');
+      check('no undeliverable callback was saved', !row?.setting_value,
+        `a callback Safaricom cannot reach is still saved: ${row?.setting_value}`);
+    }
   }
 }
 

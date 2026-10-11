@@ -102,11 +102,46 @@ final class MpesaConfig
         // feature.
         $paybill = $pick('mpesa_paybill', 'MPESA_SHORTCODE');
 
-        // The callback is settable in Settings so nobody has to edit a file on the
-        // server and restart. The placeholder is NOT filtered here on purpose: the
-        // caller needs to see it in order to warn that confirmations will not
-        // arrive. Whether that matters is the caller's decision, not this one's.
-        $callback = trim((string) ($fromDb['mpesa_callback_url'] ?? ''));
+        /*
+         * The callback, in order of preference.
+         *
+         * A saved value wins, because pointing confirmations somewhere other
+         * than where this app is reached - a fixed domain, say, while it is also
+         * served over a tunnel whose address changes - is a real reason to set
+         * one by hand.
+         *
+         * Everything that is not a saved value loses to the address the request
+         * arrived on. That includes the stand-ins: a placeholder in .env was
+         * copied in with the example configuration and never filled in, and a
+         * previously saved localhost is left over from testing on this machine.
+         * Preferring either means the app tells Safaricom to post somewhere that
+         * cannot exist while a working address sits one line away.
+         */
+        $savedCallback = trim((string) ($fromDb['mpesa_callback_url'] ?? ''));
+        $savedCallback = self::usable($savedCallback) && !self::isPlaceholder($savedCallback)
+            ? $savedCallback
+            : '';
+
+        $fromEnv = trim((string) (Env::get('MPESA_CALLBACK_URL') ?? ''));
+        $fromEnv = self::usable($fromEnv) && !self::isPlaceholder($fromEnv) ? $fromEnv : '';
+
+        $derived = self::deriveCallback();
+
+        if ($savedCallback !== '') {
+            $callback = $savedCallback;
+            $callbackSource = 'settings';
+        } elseif ($fromEnv !== '') {
+            $callback = $fromEnv;
+            $callbackSource = 'env';
+        } elseif ($derived !== null) {
+            $callback = $derived . '/api/mpesa/callback';
+            $callbackSource = 'this server';
+        } else {
+            // Nothing to go on: show whatever placeholder exists so the operator
+            // can see what is wrong with it, rather than an empty row.
+            $callback = $savedCallback !== '' ? $savedCallback : $fromEnv;
+            $callbackSource = 'unset';
+        }
 
         /*
          * Which Daraja deployment to talk to.
@@ -127,16 +162,14 @@ final class MpesaConfig
             'shortcode' => $shortcode['value'],
             'passkey' => $passkey['value'],
             'paybill' => $paybill['value'],
-            'callbackUrl' => self::usable($callback)
-                ? $callback
-                : trim((string) (Env::get('MPESA_CALLBACK_URL') ?? '')),
+            'callbackUrl' => $callback,
             'source' => [
                 'consumerKey' => $key['from'],
                 'consumerSecret' => $secret['from'],
                 'shortcode' => $shortcode['from'],
                 'passkey' => $passkey['from'],
                 'paybill' => $paybill['from'],
-                'callbackUrl' => self::usable($callback) ? 'settings' : 'env',
+                'callbackUrl' => $callbackSource,
                 'environment' => $envSaved !== ''
                     ? 'settings'
                     : (Env::get('MPESA_ENV') !== null ? 'env' : 'default'),
@@ -180,19 +213,67 @@ final class MpesaConfig
     }
 
     /**
+     * The public address of this server, worked out from the current request.
+     *
+     * Deliberately derived rather than configured: a callback typed by hand is
+     * either right or silently wrong, and when it is wrong Safaricom accepts the
+     * money and tells nobody. Deriving it means the operator types a till number
+     * and nothing else.
+     *
+     * Returns null rather than guessing when there is no usable Host header.
+     */
+    private static function deriveCallback(): ?string
+    {
+        $host = trim((string) ($_SERVER['HTTP_HOST'] ?? ''));
+
+        if ($host === '' || str_contains($host, '/') || str_contains($host, ' ')) {
+            return null;
+        }
+
+        // The proxy or tunnel in front of the app terminates TLS, so Apache sees
+        // plain HTTP. Reporting http here would hand Safaricom a callback it
+        // refuses. Only this header may say https.
+        $forwarded = strtolower(trim(explode(',', (string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''))[0]));
+        $scheme = $forwarded === 'https' ? 'https' : 'http';
+
+        $basePath = rtrim(trim((string) (Env::get('APP_BASE_PATH', '') ?? '')), '/');
+
+        return $scheme . '://' . $host . $basePath;
+    }
+
+    /**
      * Whether a callback URL could actually receive a Safaricom POST.
      *
      * Registering a placeholder is worse than not registering at all: Safaricom
      * accepts the registration, so the operator believes the paybill is live, and
      * the money then arrives at a URL that answers 404 and the payment is never
      * recorded.
+     *
+     * localhost counts as unreachable for the same reason - Safaricom is on the
+     * internet and has no route to this machine. Reaching the app through a
+     * tunnel or a domain is what makes this true, and the status panel says so
+     * rather than letting a prompt be refused at the last moment.
      */
     public static function callbackReachable(array $config): bool
     {
         $url = (string) ($config['callbackUrl'] ?? '');
 
-        return $url !== ''
-            && preg_match('/your[-_]?domain|example\.com|localhost/i', $url) !== 1;
+        return $url !== '' && !self::isPlaceholder($url);
+    }
+
+    /**
+     * Whether a URL is one of the obvious stand-ins rather than a real address.
+     *
+     * Also covers localhost and the loopback addresses, because Safaricom is on
+     * the internet and has no route to this machine: reaching the app through a
+     * tunnel or a domain is what makes a callback deliverable.
+     */
+    private static function isPlaceholder(string $url): bool
+    {
+        return preg_match(
+            '/your[-_]?domain|example\.(com|org|net)|localhost|127\.0\.0\.1|\[::1\]/i',
+            $url
+        ) === 1;
     }
 
 
