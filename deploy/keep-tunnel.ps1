@@ -92,31 +92,39 @@ function Start-Tunnel {
   Write-Status 'cloudflared started'
 }
 
-# Log in, because the app records the address from the request it is given.
-function Confirm-AppKnows($address) {
+# Tell the app which address to confirm to.
+#
+# Writes it as a setting rather than hoping the app notices. The app refuses to
+# overwrite a callback it believes was chosen deliberately, and a tunnel address
+# that has died looks exactly like one - a well-formed https URL. Asking the app
+# to notice cannot work here, because the only evidence is that the old address
+# no longer answers, and nothing in the app checks that.
+#
+# So the change is made explicitly, down the same path an operator would use, and
+# the app treats it as deliberate. That is right: this script knows the current
+# address, rather than guessing at it.
+function Set-AppCallback($address) {
   $login = @{
     identifier = 'admin'
     password   = 'admin123'
   } | ConvertTo-Json
 
-  try {
-    $token = (Invoke-RestMethod -Method Post -Uri "$address/the-team/api/auth/admin-login" `
-      -ContentType 'application/json' -Body $login -TimeoutSec 20).token
+  $token = (Invoke-RestMethod -Method Post `
+    -Uri 'http://localhost:8080/the-team/api/auth/admin-login' `
+    -ContentType 'application/json' -Body $login -TimeoutSec 8).token
 
-    if (-not $token) { return $false }
+  Invoke-RestMethod -Method Put -Uri 'http://localhost:8080/the-team/api/settings' `
+    -Headers @{ Authorization = "Bearer $token" } `
+    -ContentType 'application/json' `
+    -Body (@{ values = @{ mpesa_callback_url = "$address/the-team/api/mpesa/callback" } } |
+      ConvertTo-Json -Depth 4) `
+    -TimeoutSec 8 | Out-Null
 
-    # A status request is enough: that is where the app records the address.
-    Invoke-RestMethod -Method Get -Uri "$address/the-team/api/mpesa/status" `
-      -Headers @{ Authorization = "Bearer $token" } -TimeoutSec 20 | Out-Null
+  $status = (Invoke-RestMethod -Method Get `
+    -Uri 'http://localhost:8080/the-team/api/mpesa/status' `
+    -Headers @{ Authorization = "Bearer $token" } -TimeoutSec 8)
 
-    $status = (Invoke-RestMethod -Method Get `
-      -Uri 'http://localhost:8080/the-team/api/mpesa/status' `
-      -Headers @{ Authorization = "Bearer $token" } -TimeoutSec 20)
-
-    return $status.callback_url -eq "$address/the-team/api/mpesa/callback"
-  } catch {
-    return $false
-  }
+  return $status.callback_url -eq "$address/the-team/api/mpesa/callback"
 }
 
 # Once, now, so the machine is in the right state without waiting for a reboot.
@@ -145,24 +153,26 @@ if (-not $address) {
     Write-Status "public address is now $address"
   }
 
-  if (Confirm-AppKnows $address) {
-    Write-Status 'the app is pointed at the current address'
-  } else {
-    # A brand new address takes a few seconds to serve traffic. Retrying here
-    # is the difference between the app being repointed within seconds of a
-    # reboot and it staying pointed at a dead address until somebody notices.
-    Write-Status 'address is live but the app has not picked it up yet, retrying'
-    for ($attempt = 1; $attempt -le 6; $attempt++) {
-      Start-Sleep -Seconds 5
-      if (Confirm-AppKnows $address) {
-        Write-Status "the app is pointed at the current address (attempt $attempt)"
-        break
-      }
+  # Apache and the app may not be up yet at sign-in, and a brand new address
+  # takes a few seconds to serve. Retrying here is the difference between the
+  # app being repointed within seconds of a reboot and it staying pointed at a
+  # dead address until somebody notices.
+  $pointed = $false
+
+  for ($attempt = 1; $attempt -le 10; $attempt++) {
+    try {
+      if (Set-AppCallback $address) { $pointed = $true; break }
+    } catch {
+      # The app being unreachable is expected this early; keep trying.
     }
 
-    if ((Get-Content (Join-Path $logDir 'keep-tunnel.log') -Tail 1) -notmatch 'pointed at the current') {
-      Write-Status 'WARNING: could not point the app at the new address'
-    }
+    if ($attempt -lt 10) { Start-Sleep -Seconds 5 }
+  }
+
+  if ($pointed) {
+    Write-Status 'the app is pointed at the current address'
+  } else {
+    Write-Status 'WARNING: could not point the app at the new address'
   }
 }
 
