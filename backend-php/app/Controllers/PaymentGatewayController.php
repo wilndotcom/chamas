@@ -28,16 +28,13 @@ final class PaymentGatewayController
     /**
      * Which stored payment_method values each gateway covers.
      *
-     * One gateway to one method, so an operator can offer a paybill without also
-     * offering STK Push. The enum is finer-grained than the gateway, which is why
-     * the mapping is written out rather than inferred from names.
-     *
-     * M-Pesa's two products stay in one payment_method pair because Daraja's
-     * credentials are shared; only the registered endpoint differs.
+     * One gateway to one method. C2B is deliberately absent: this group collects
+     * by STK Push only, so offering a paybill would show a member an option that
+     * no longer works, and an un-confirmed paybill payment is worse than no
+     * option at all - the money arrives with nobody told.
      */
     private const GATEWAY_METHODS = [
         'mpesa_stk' => ['mpesa_stk'],
-        'mpesa_c2b' => ['mpesa_c2b'],
         'airtel_money' => ['airtel_money'],
         'bank' => ['bank'],
         'cash' => ['cash'],
@@ -45,7 +42,6 @@ final class PaymentGatewayController
 
     private const LABELS = [
         'mpesa_stk' => 'M-Pesa (STK Push)',
-        'mpesa_c2b' => 'M-Pesa (paybill / C2B)',
         'airtel_money' => 'Airtel Money',
         'bank' => 'Bank Transfer',
         'cash' => 'Cash',
@@ -58,8 +54,7 @@ final class PaymentGatewayController
      * the app, and getting it wrong produces an opaque rejection.
      */
     private const DARJAJA_ENDPOINTS = [
-        'mpesa_stk' => 'https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest',
-        'mpesa_c2b' => 'Callback URL (Safaricom posts the confirmation to your app)',
+        'mpesa_stk' => 'https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest',
     ];
 
     /**
@@ -72,7 +67,7 @@ final class PaymentGatewayController
      */
     private static function isGatewayUsable(string $key, bool $mpesaReady): bool
     {
-        if ($key === 'mpesa_stk' || $key === 'mpesa_c2b') {
+        if ($key === 'mpesa_stk') {
             return $mpesaReady;
         }
 

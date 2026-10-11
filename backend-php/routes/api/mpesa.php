@@ -15,22 +15,14 @@ use TheTeam\Router;
 
 return function (Router $router, string $prefix): void {
     /*
-     * The callbacks are deliberately unauthenticated.
+     * The STK callback is deliberately unauthenticated.
      *
-     * Safaricom posts to these with no credentials of ours, so they cannot sit
-     * behind the usual token check. They are identified instead by the
-     * transaction ID they quote, which only Safaricom and this server have seen.
-     * Locking them behind auth would mean Safaricom's confirmation is rejected
-     * and every payment stays "pending" forever.
+     * Safaricom posts to it with no credentials of ours, so it cannot sit behind
+     * the usual token check. It is identified instead by the checkout ID it
+     * quotes, which only Safaricom and this server have seen. Locking it behind
+     * auth would mean the confirmation is rejected and every payment stays
+     * "pending" forever.
      */
-    $router->post($prefix . '/confirmation', function (Request $r) {
-        MpesaController::c2bConfirmation($r);
-    });
-
-    $router->post($prefix . '/validation', function (Request $r) {
-        MpesaController::c2bValidation($r);
-    });
-
     $router->post($prefix . '/callback', function (Request $r) {
         MpesaController::mpesaCallback($r);
     });

@@ -46,6 +46,19 @@ final class MpesaController
                 Response::error('Phone and amount are required.', 400);
             }
 
+            // Same conversion as the test prompt: Daraja rejects a local-format
+            // number with 400.002.02, which reads as Safaricom being difficult
+            // rather than a format the app should have converted.
+            $dialable = Phone::toInternational($phone);
+
+            if ($dialable === null) {
+                Response::error(
+                    'That does not look like a Kenyan phone number. Use the local form '
+                    . '(0712345678) or the international one (254712345678).',
+                    400
+                );
+            }
+
             $config = MpesaConfig::get();
 
             if (!MpesaConfig::isConfigured($config)) {
@@ -106,7 +119,7 @@ final class MpesaController
 
             $data = self::sendStkPrompt($config, [
                 'accessToken' => $token,
-                'phone' => $phone,
+                'phone' => $dialable ?? $phone,
                 'amount' => $amount,
                 'reference' => $body['reference'] ?? null,
                 'description' => $body['description'] ?? null,
@@ -178,6 +191,23 @@ final class MpesaController
                 Response::error('The amount must be greater than zero.', 400);
             }
 
+            /*
+             * Daraja wants 254712345678. A member's number is stored as
+             * 0712345678 and typed into this box in that form, so passing it
+             * through unchanged gets the whole request rejected with
+             * 400.002.02 "Invalid PhoneNumber" - which reads like Safaricom being
+             * difficult rather than a format the app should have converted.
+             */
+            $dialable = Phone::toInternational($phone);
+
+            if ($dialable === null) {
+                Response::error(
+                    'That does not look like a Kenyan phone number. Use the local form '
+                    . '(0712345678) or the international one (254712345678).',
+                    400
+                );
+            }
+
             $config = MpesaConfig::get();
 
             if (!MpesaConfig::isConfigured($config)) {
@@ -229,7 +259,7 @@ final class MpesaController
 
             $data = self::sendStkPrompt($config, [
                 'accessToken' => $token,
-                'phone' => $phone,
+                'phone' => $dialable,
                 'amount' => $amount,
                 'reference' => $body['reference'] ?? null,
                 'description' => $body['description'] ?? 'Test prompt',
