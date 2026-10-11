@@ -93,9 +93,23 @@ Write-Step 'Building the frontend for /the-team ...'
 # on this machine belongs to some other app, and the page loads blank.
 $env:APP_BASE_PATH = $prefix
 
+# Built into its own folder, NOT frontend/dist.
+#
+# frontend/dist is shared with the Node backend on port 5000, which serves the app
+# from the root and therefore needs its assets at /assets/... Overwriting it with
+# a /the-team build makes that version request /the-team/assets/..., which its own
+# SPA fallback answers with index.html - so the browser gets HTML where it asked
+# for JavaScript and the page goes blank with no error to explain why.
+$deployDist = Join-Path $frontend 'dist-xampp'
+
 Push-Location $frontend
 try {
-    & npm run build
+    # Vite is invoked directly rather than through "npm run build --". On Windows
+    # the extra arguments are not reliably forwarded to the build script, and the
+    # build then silently writes to the default folder - which is the one shared
+    # with the Node backend, and the exact breakage this separation exists to
+    # prevent.
+    & npx vite build --outDir dist-xampp --emptyOutDir
     if ($LASTEXITCODE -ne 0) {
         throw 'The frontend build failed. See the output above.'
     }
@@ -104,7 +118,11 @@ try {
     Remove-Item Env:\APP_BASE_PATH -ErrorAction SilentlyContinue
 }
 
-$dist = Join-Path $frontend 'dist'
+if (-not (Test-Path (Join-Path $deployDist 'index.html'))) {
+    throw "The build reported success but produced no index.html in $deployDist."
+}
+
+$dist = $deployDist
 if (-not (Test-Path (Join-Path $dist 'index.html'))) {
     throw "The build reported success but produced no index.html in $dist."
 }

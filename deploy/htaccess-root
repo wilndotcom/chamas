@@ -14,9 +14,21 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    # Deep links such as /the-team/admin/settings have no file behind them.
-    # Existing files win, so the hashed assets are served directly instead of
-    # being rewritten into the app shell.
+    # Anything with a file extension is served as itself.
+    #
+    # Before the "existing file" test below, and deliberately by extension rather
+    # than by -f. A request for assets/index-oTfup_cL.js has a file behind it and
+    # should be served, but if the existence test does not match the browser is
+    # handed index.html with a JavaScript content type - which parses as a syntax
+    # error and leaves a blank page with no message explaining why.
+    #
+    # Extension-based is the safer test here because it cannot be defeated by
+    # path resolution: a .js or .css path is never an app route.
+    RewriteRule \.(js|mjs|css|map|json|png|jpe?g|gif|svg|webp|ico|woff2?|ttf|eot|txt|webmanifest)$ - [L]
+
+    # Then the general case: a real file or directory is served as itself, so
+    # deep links such as /the-team/admin/settings fall through to the app shell
+    # below while anything on disk is left alone.
     RewriteCond %{REQUEST_FILENAME} -f [OR]
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule ^ - [L]

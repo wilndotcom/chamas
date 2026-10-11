@@ -1,6 +1,11 @@
 # Dependencies
 node_modules/
 
+# The deploy build for XAMPP. Kept apart from frontend/dist because that folder is
+# shared with the Node backend on port 5000, which needs its assets at the root
+# while this one needs them under /the-team.
+frontend/dist-xampp/
+
 # Composer dependencies for the PHP port.
 # composer.lock IS committed - the exact versions are what make a deploy
 # reproducible - but vendor/ is restored with "composer install".
