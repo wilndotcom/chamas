@@ -502,7 +502,6 @@ const Welfare = () => {
                 >
                   <option value="cash">{t('gateway.methodCash')}</option>
                   <option value="mpesa_stk">{t('gateway.methodMpesaStk')}</option>
-                  <option value="mpesa_c2b">{t('gateway.methodMpesaC2b')}</option>
                   <option value="bank">{t('gateway.methodBank')}</option>
                 </select>
               </div>

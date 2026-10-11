@@ -299,61 +299,6 @@ final class MpesaController
     }
 
     /**
-     * Registers the paybill's validation and confirmation URLs with Safaricom.
-     *
-     * This has to be done once per shortcode, and only Safaricom can accept the
-     * change, so it cannot be done from the settings screen itself. Having a
-     * button here is what makes it reachable without writing curl by hand.
-     */
-    public static function registerC2BUrls(Request $r): void
-    {
-        try {
-            $config = MpesaConfig::get();
-
-            if (!MpesaConfig::isConfigured($config)) {
-                Response::error('M-Pesa is not configured yet.', 400);
-            }
-
-            // Refused rather than forwarded: a successful registration against a
-            // placeholder URL looks like success and silently breaks every C2B
-            // payment.
-            if (!MpesaConfig::callbackReachable($config)) {
-                Response::json([
-                    'error' => 'The callback URL is still the sample value ('
-                        . ($config['callbackUrl'] ?: 'unset')
-                        . '), so Safaricom would be told to post to an address that does not '
-                        . 'exist. Set your real https domain in Settings first, then register.',
-                    'field' => 'mpesa_callback_url',
-                ], 400);
-            }
-
-            $urls = MpesaConfig::c2bEndpoints($config);
-            $token = self::accessToken($config);
-
-            $data = self::daraja('POST', $config, '/mpesa/c2b/v1/registerurl', [
-                'ShortCode' => $config['shortcode'],
-                'ResponseType' => 'Completed',
-                'ConfirmationURL' => $urls['confirmation'],
-                'ValidationURL' => $urls['validation'],
-            ], $token);
-
-            Response::json(['success' => true, 'data' => $data, 'registered' => $urls]);
-        } catch (DarajaException $e) {
-            Log::warn('[mpesa] C2B register failed: '
-                . ($e->detail['daraja_code'] ?? '') . ' ' . ($e->detail['daraja_message'] ?? ''));
-
-            Response::json(array_merge([
-                'error' => ($e->detail['daraja_message'] ?? null)
-                    ? 'Safaricom rejected the request: ' . $e->detail['daraja_message']
-                    : 'Could not reach Safaricom. Check the server internet connection and try again.',
-            ], $e->detail), 502);
-        } catch (\Throwable $e) {
-            Log::warn('[mpesa] C2B register failed: ' . $e->getMessage());
-            Response::error('Failed to register the C2B URLs.', 500);
-        }
-    }
-
-    /**
      * What M-Pesa credentials the API is actually using, and where each came from.
      *
      * This is what makes the Settings screen honest: an operator can see that a
@@ -388,11 +333,11 @@ final class MpesaController
                 'source' => $config['source'],
                 'callback_url' => $config['callbackUrl'] ?: null,
 
-                // Both facts shown in Settings: whether Safaricom could deliver a
-                // confirmation at all, and which URLs a C2B registration would
-                // publish.
+                // Whether Safaricom could deliver a confirmation at all. Shown in
+                // Settings because in production it is the difference between a
+                // payment being recorded and a payment vanishing.
                 'callback_reachable' => MpesaConfig::callbackReachable($config),
-                'c2b_endpoints' => MpesaConfig::c2bEndpoints($config),
+
                 'note' => 'source shows where each value comes from: "settings" means the value '
                     . 'saved in this screen is in use, "env" means the API is falling back to the '
                     . 'environment file.',
@@ -492,99 +437,6 @@ final class MpesaController
         }
     }
 
-    /**
-     * The C2B confirmation Safaricom posts once money has been received.
-     *
-     * Always answers Accept, including on an unexpected payload. The money
-     * arrived, and failing the acknowledgement invites a duplicate retry rather
-     * than recovering the payment.
-     */
-    public static function c2bConfirmation(Request $r): void
-    {
-        $accept = static fn() => Response::json(['ResultCode' => 0, 'ResultDesc' => 'Accept']);
-
-        try {
-            $body = $r->body() ?: [];
-
-            $transId = $body['TransID'] ?? $body['TransId'] ?? null;
-            $phone = trim((string) ($body['MSISDN'] ?? $body['PhoneNumber'] ?? ''));
-
-            /*
-             * TransAmount first, TransAmt second.
-             *
-             * Safaricom sends TransAmount. Reading only TransAmt parsed the amount
-             * as zero, so every C2B payment was recorded with no value and the
-             * contribution was silently worthless.
-             */
-            $amountRaw = $body['TransAmount'] ?? $body['TransAmt'] ?? $body['Amount'] ?? 0;
-            $amount = is_numeric($amountRaw) ? (float) $amountRaw : 0.0;
-
-            // Recorded so a C2B payment appears in the ledger trail rather than
-            // only on Safaricom's own dashboard. A duplicate TransID updates
-            // rather than fails, which is what a Safaricom retry should do.
-            if ($transId !== null && $phone !== '' && $amount > 0) {
-                Database::run(
-                    <<<'SQL'
-                        INSERT INTO mpesa_transactions
-                          (transaction_id, phone, amount, reference, type, status, response_data)
-                        VALUES (?, ?, ?, ?, 'c2b', 'success', ?)
-                        ON DUPLICATE KEY UPDATE
-                          status = 'success',
-                          response_data = VALUES(response_data)
-                        SQL,
-                    [
-                        $transId,
-                        $phone,
-                        $amount,
-                        $body['BillRefNumber'] ?? $body['AccountReference'] ?? null,
-                        json_encode($body),
-                    ]
-                );
-
-                $recorded = self::recordSuccessfulPayment($amount, $transId, $phone, 'mpesa_c2b');
-
-                if ($recorded['matched'] && empty($recorded['duplicate'])) {
-                    Log::startup("[mpesa] C2B recorded contribution {$recorded['contributionId']} "
-                        . "for member {$recorded['memberId']}");
-                } elseif (empty($recorded['matched'])) {
-                    Log::warn("[mpesa] C2B UNMATCHED payment: KES {$amount} from {$phone}, "
-                        . "TransID {$transId} - {$recorded['reason']}");
-                }
-            }
-
-            Log::startup('[mpesa] C2B confirmation: '
-                . ($transId ?: '(no TransID)') . " {$phone} {$amount} "
-                . ($body['ResultCode'] ?? ''));
-
-            $accept();
-        } catch (\Throwable $e) {
-            Log::warn('C2B confirmation error: ' . $e->getMessage());
-            $accept();
-        }
-    }
-
-    /**
-     * The C2B validation Safaricom posts before completing a paybill payment.
-     *
-     * Answers Accept for the same reason as the confirmation.
-     */
-    public static function c2bValidation(Request $r): void
-    {
-        try {
-            $body = $r->body() ?: [];
-
-            Log::startup('[mpesa] C2B validation: '
-                . ($body['TransID'] ?? $body['TransId'] ?? '(no TransID)') . ' '
-                . ($body['MSISDN'] ?? $body['PhoneNumber'] ?? '(no phone)') . ' '
-                . ($body['TransAmount'] ?? $body['TransAmt'] ?? $body['Amount'] ?? '(no amount)'));
-
-            Response::json(['ResultCode' => 0, 'ResultDesc' => 'Accept']);
-        } catch (\Throwable $e) {
-            Log::warn('C2B validation error: ' . $e->getMessage());
-            Response::json(['ResultCode' => 0, 'ResultDesc' => 'Accept']);
-        }
-    }
-
     // -------------------------------------------------------------- helpers
 
     /**
@@ -637,7 +489,7 @@ final class MpesaController
             ];
         }
 
-        $kind = $paymentMethod === 'mpesa_c2b' ? 'C2B' : 'STK push';
+        $kind = 'STK push';
 
         $contributionId = Database::transaction(function ($pdo) use (
             $member, $amount, $paymentMethod, $mpesaReceipt, $kind

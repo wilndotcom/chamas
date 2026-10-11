@@ -51,12 +51,6 @@ return function (Router $router, string $prefix): void {
         MpesaController::stkTestPrompt($r);
     });
 
-    $router->post($prefix . '/register-c2b', function (Request $r) {
-        Auth::require($r, 'admin');
-        Auth::authorize($r, ['system_settings']);
-        MpesaController::registerC2BUrls($r);
-    });
-
     $router->get($prefix . '/status', function (Request $r) {
         Auth::require($r, 'admin');
         MpesaController::mpesaStatus($r);

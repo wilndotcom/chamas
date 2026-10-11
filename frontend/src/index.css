@@ -3911,6 +3911,55 @@ tbody tr:last-child td {
   border-left: 3px solid var(--danger);
 }
 
+/* ---------- M-Pesa STK readiness ----------
+   Shown above the test-prompt button so an operator can see what is missing
+   before sending a real prompt to a real phone. */
+.mpesa-readiness {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.mpesa-readiness .mpesa-ok,
+.mpesa-readiness .mpesa-bad {
+  display: inline-flex;
+  align-items: center;
+}
+
+.mpesa-ok {
+  color: var(--success, #12805c);
+}
+
+.mpesa-bad {
+  color: var(--danger);
+}
+
+.mpesa-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 10px;
+  margin: 0 0 10px;
+}
+
+.mpesa-facts dt {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.mpesa-facts dd {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mpesa-facts dd code {
+  margin: 0;
+}
+
 .gateway-action-result code {
   display: block;
   margin-top: 5px;

@@ -209,69 +209,16 @@ console.log('\n=== a malformed callback ===\n');
   }
 }
 
-console.log('\n=== the C2B callbacks ===\n');
+console.log('\n=== the paybill routes are gone ===\n');
 
 {
-  // Safaricom sends TransAmount. Reading only TransAmt parsed the amount as zero
-  // and every C2B payment was recorded with no value.
-  const res = await api(null, 'POST', '/api/mpesa/confirmation', {
-    TransID: `C2B${suffix}1`,
-    TransTime: '2026-10-11T10:00:00.000Z',
-    TransType: 'PayBill',
-    TransCode: '0',
-    MSISDN: intl,
-    Amount: 0,
-    TransAmt: 750,
-    TransAmount: 750,
-    BillRefNumber: 'THE TEAM',
-  });
-
-  check('a C2B confirmation is accepted', res.body?.ResultCode === 0, res.text.slice(0, 100));
-
-  const after = (await api(admin, 'GET', `/api/contributions/member/${memberId}`))
-    .body.contributions;
-  const c2b = after.find((c) => c.reference_number === `C2B${suffix}1`);
-
-  check('the C2B payment credited the member', !!c2b);
-  check('the amount came through',
-    Number(c2b?.amount) === 750, `recorded ${c2b?.amount} - a zero here means TransAmt was read`);
-
-  // The confirmation must be idempotent on TransID, same as the STK callback.
-  await api(null, 'POST', '/api/mpesa/confirmation', {
-    TransID: `C2B${suffix}1`, MSISDN: intl, TransAmount: 750, TransAmt: 750,
-  });
-
-  const afterRetry = (await api(admin, 'GET', `/api/contributions/member/${memberId}`))
-    .body.contributions;
-  check('a repeated confirmation does not pay twice',
-    afterRetry.filter((c) => c.reference_number === `C2B${suffix}1`).length === 1);
-}
-
-{
-  // Only TransAmount, no TransAmt: the field Safaricom actually sends.
-  const res = await api(null, 'POST', '/api/mpesa/confirmation', {
-    TransID: `C2B${suffix}2`, MSISDN: intl, TransAmount: 250,
-  });
-
-  const after = (await api(admin, 'GET', `/api/contributions/member/${memberId}`))
-    .body.contributions;
-  const c2b = after.find((c) => c.reference_number === `C2B${suffix}2`);
-
-  check('TransAmount alone is read correctly', Number(c2b?.amount) === 250,
-    `recorded ${c2b?.amount}`);
-}
-
-{
-  const res = await api(null, 'POST', '/api/mpesa/validation', {
-    TransID: `C2B${suffix}3`, MSISDN: intl, TransAmount: 100,
-  });
-
-  check('C2B validation is accepted', res.body?.ResultCode === 0, res.text.slice(0, 90));
-
-  const after = (await api(admin, 'GET', `/api/contributions/member/${memberId}`))
-    .body.contributions;
-  check('validation records nothing', !after.find((c) => c.reference_number === `C2B${suffix}3`),
-    'validation is Safaricom asking permission, not a payment');
+  // C2B is removed rather than left dormant: an unconfirmed paybill payment is
+  // worse than no option at all, because the money arrives and nobody is told.
+  // The routes must be absent, not merely unused, so nothing can call them.
+  for (const path of ['/api/mpesa/confirmation', '/api/mpesa/validation', '/api/mpesa/register-c2b']) {
+    const res = await api(null, 'POST', path, { TransID: 'x', MSISDN: intl, TransAmount: 1 });
+    check(`${path} is not served`, res.status === 404, `got ${res.status}`);
+  }
 }
 
 console.log('\n=== the ledger ===\n');
@@ -304,21 +251,42 @@ console.log('\n=== the money-moving endpoints need a permission ===\n');
     `got ${testAsMember.status}`);
 }
 
-console.log('\n=== the test prompt records nothing ===\n');
+console.log('\n=== the production guard ===\n');
 
 {
-  // Deliberately guarded so no request reaches Safaricom: this server is in
-  // production with a placeholder callback, and the guard must stop it.
-  const before = (await api(admin, 'GET', '/api/contributions')).body.contributions.length;
+  // The guard is what stops a group collecting money into a hole when Safaricom
+  // has nowhere to send the confirmation. It is exercised by pointing the
+  // callback at a placeholder for the length of this block, then putting the
+  // operator's real value back - it is never left broken, even if a step throws.
+  const real = (await api(admin, 'GET', '/api/mpesa/status')).body.callback_url;
 
-  const res = await api(admin, 'POST', '/api/mpesa/test-prompt', { phone: intl, amount: 1 });
+  try {
+    await api(admin, 'PUT', '/api/settings',
+      { values: { mpesa_callback_url: 'https://your-domain.com/api/mpesa/callback' } });
 
-  check('the production guard refuses before contacting Safaricom',
-    res.status === 400 && res.body?.field === 'mpesa_callback_url',
-    `${res.status} ${res.text.slice(0, 140)}`);
+    const flagged = await api(admin, 'GET', '/api/mpesa/status');
+    check('a placeholder callback is flagged as unreachable',
+      flagged.body?.callback_reachable === false,
+      'the operator must be told Safaricom cannot reach their callback');
 
-  const after = (await api(admin, 'GET', '/api/contributions')).body.contributions.length;
-  check('nothing was recorded', after === before, `${after - before} contribution(s) appeared`);
+    // Deliberately guarded so no request reaches Safaricom while the callback
+    // cannot be delivered.
+    const before = (await api(admin, 'GET', '/api/contributions')).body.contributions.length;
+    const res = await api(admin, 'POST', '/api/mpesa/test-prompt', { phone: intl, amount: 1 });
+
+    check('the production guard refuses before contacting Safaricom',
+      res.status === 400 && res.body?.field === 'mpesa_callback_url',
+      `${res.status} ${res.text.slice(0, 140)}`);
+
+    const after = (await api(admin, 'GET', '/api/contributions')).body.contributions.length;
+    check('nothing was recorded', after === before, `${after - before} contribution(s) appeared`);
+  } finally {
+    await api(admin, 'PUT', '/api/settings', { values: { mpesa_callback_url: real } });
+    const back = await api(admin, 'GET', '/api/mpesa/status');
+    check('the real callback is restored afterwards',
+      back.body?.callback_url === real && back.body?.callback_reachable === true,
+      `callback is now ${back.body?.callback_url}`);
+  }
 }
 
 console.log('\n=== the status endpoint does not leak ===\n');
@@ -336,10 +304,6 @@ console.log('\n=== the status endpoint does not leak ===\n');
   check('no long credential appears anywhere in the body',
     !/[A-Za-z0-9]{20,}/.test(asText.replace(/QGVN[^"]*"|"passkey":"[^"]*"/g, '')),
     'a long unbroken string in the status body may be a credential');
-
-  check('the placeholder callback is flagged as unreachable',
-    res.body?.callback_reachable === false,
-    'the operator must be told Safaricom cannot reach their callback');
 }
 
 console.log(`\npassed ${passed}, failed ${failed}`);

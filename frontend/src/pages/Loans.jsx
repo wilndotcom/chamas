@@ -56,7 +56,7 @@ const Loans = () => {
   const [payLoan, setPayLoan] = useState(null);
   const [payForm, setPayForm] = useState({
     amount: '',
-    payment_method: 'mpesa_c2b',
+    payment_method: 'mpesa_stk',
     reference_number: ''
   });
   const [paying, setPaying] = useState(false);
@@ -166,7 +166,7 @@ const Loans = () => {
     setPayLoan(loan);
     setPayForm({
       amount: String(Number(loan.balance).toFixed(2)),
-      payment_method: pickDefault('mpesa_c2b'),
+      payment_method: pickDefault('mpesa_stk'),
       reference_number: ''
     });
     setShowPayModal(true);

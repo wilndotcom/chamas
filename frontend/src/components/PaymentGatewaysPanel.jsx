@@ -19,7 +19,6 @@ import MpesaGatewayAction from './MpesaGatewayAction';
  */
 const GATEWAY_KEYS = {
   mpesa_stk: { display: 'gateway.displayMpesaStk', desc: 'gateway.desc.mpesaStk' },
-  mpesa_c2b: { display: 'gateway.displayMpesaC2b', desc: 'gateway.desc.mpesaC2b' },
   airtel_money: { display: 'gateway.displayAirtel', desc: 'gateway.desc.airtel' },
   bank: { display: 'gateway.displayBank', desc: 'gateway.desc.bank' },
   cash: { display: 'gateway.displayCash', desc: 'gateway.desc.cash' }
@@ -27,7 +26,6 @@ const GATEWAY_KEYS = {
 
 const METHOD_KEYS = {
   mpesa_stk: 'gateway.methodMpesaStk',
-  mpesa_c2b: 'gateway.methodMpesaC2b',
   airtel_money: 'gateway.methodAirtel',
   bank: 'gateway.methodBank',
   cash: 'gateway.methodCash'

@@ -1,87 +1,81 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { Link2, Send, Loader2, AlertTriangle } from 'lucide-react';
+import { Send, Loader2, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
 import { useI18n } from '../i18n/I18nContext';
 
 /**
- * The one action each M-Pesa gateway needs that the app cannot do for itself.
+ * The M-Pesa panel inside its gateway row.
  *
- * Both exist because both used to be impossible from inside the app:
+ * STK Push is the only M-Pesa product this group uses, so there is nothing to
+ * choose between here - the panel is a readiness check and a way to prove the
+ * Daraja setup without taking anyone's money.
  *
- *   mpesa_c2b   Only Safaricom can register a paybill's confirmation and
- *               validation URLs, and the operator had to do it with curl.
- *   mpesa_stk   There was no way to send a prompt without recording a real
- *               contribution against a member, so the Daraja setup could only
- *               be verified by taking someone's money.
- *
- * Rendered inside its own gateway row rather than as one shared M-Pesa panel,
- * because the two actions belong to different products: registering C2B URLs does
- * nothing for STK Push, and a test prompt proves nothing about the paybill.
+ * It renders for mpesa_stk only. Anything else has no M-Pesa action worth
+ * offering.
  */
 const MpesaGatewayAction = ({ gatewayKey }) => {
-  const { t } = useI18n();
-
-  if (gatewayKey === 'mpesa_c2b') return <RegisterC2BUrls />;
-  if (gatewayKey === 'mpesa_stk') return <TestStkPrompt />;
-  return null;
+  if (gatewayKey !== 'mpesa_stk') return null;
+  return <StkReadiness />;
 };
 
 /**
- * Publishes the paybill's two callback URLs with Safaricom.
+ * Reads the one thing that decides whether STK works: can Safaricom reach us,
+ * and have we been given keys at all.
  *
- * Safe to press more than once: registering again overwrites the previous pair
- * with the same values, which is also how an operator fixes a URL that changed.
+ * Shown before any button so an operator can see what is missing instead of
+ * pressing Send test prompt and being refused.
  */
-const RegisterC2BUrls = () => {
+const StkReadiness = () => {
   const { t } = useI18n();
-  const [busy, setBusy] = useState(false);
-  const [endpoints, setEndpoints] = useState(null);
+  const [state, setState] = useState(null);
 
-  const register = async () => {
-    setBusy(true);
+  const check = async (e) => {
+    e.preventDefault();
     try {
-      const { data } = await axios.post('/api/mpesa/register-c2b');
-      setEndpoints(data.registered || null);
-      toast.success(t('mpesa.registeredOk'));
-    } catch (err) {
-      const body = err.response?.data || {};
-      // A refused registration names the setting to fix, so it is worth surfacing
-      // on its own rather than buried in a toast that disappears.
-      if (body.field === 'mpesa_callback_url') {
-        setEndpoints(null);
-        toast.error(body.error, { duration: 12000 });
-      } else {
-        const parts = [];
-        if (body.daraja_code) parts.push(t('contrib.safaricomCode', { code: body.daraja_code }));
-        parts.push(body.error || t('mpesa.registerFailed'));
-        toast.error(parts.join(' - '), { duration: 9000 });
-        if (body.hint) toast(body.hint, { duration: 14000, icon: '\u2699' });
-      }
-    } finally {
-      setBusy(false);
+      const { data } = await axios.get('/api/mpesa/status');
+      setState(data);
+    } catch {
+      setState({ error: true });
     }
   };
 
+  const ready = state && state.configured && state.callback_reachable;
+
   return (
     <div className="gateway-action">
-      <button
-        type="button"
-        className="btn btn-sm btn-secondary"
-        onClick={register}
-        disabled={busy}
-      >
-        {busy ? <Loader2 size={14} className="spin" /> : <Link2 size={14} />}
-        {' '}{busy ? t('mpesa.registering') : t('mpesa.registerC2b')}
-      </button>
+      {!state && (
+        <button type="button" className="btn btn-sm btn-secondary" onClick={check}>
+          <CheckCircle2 size={14} /> {t('mpesa.checkSetup')}
+        </button>
+      )}
 
-      {endpoints && (
-        <div className="gateway-action-result ok">
-          <span className="gateway-endpoint-label">{t('mpesa.registeredUrls')}</span>
-          <code>{endpoints.validation}</code>
-          <code>{endpoints.confirmation}</code>
+      {state && !state.error && (
+        <div className="gateway-action-result ok" style={{ marginTop: 8 }}>
+          <div className="mpesa-readiness">
+            <span className={ready ? 'mpesa-ok' : 'mpesa-bad'}>
+              {ready ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
+            </span>
+            <span>{ready ? t('mpesa.readyOk') : t('mpesa.notReady')}</span>
+          </div>
+          <dl className="mpesa-facts">
+            <dt>{t('mpesa.factShortcode')}</dt>
+            <dd><code>{state.values?.shortcode || '-'}</code></dd>
+            <dt>{t('mpesa.factCallback')}</dt>
+            <dd>
+              <code>{state.callback_url || t('mpesa.factCallbackMissing')}</code>
+              <span className={state.callback_reachable ? 'mpesa-ok' : 'mpesa-bad'}>
+                {state.callback_reachable ? t('mpesa.factReachable') : t('mpesa.factUnreachable')}
+              </span>
+            </dd>
+          </dl>
+          <button type="button" className="btn btn-sm btn-secondary" onClick={check}>
+            {t('mpesa.checkAgain')}
+          </button>
         </div>
       )}
+
+      <TestStkPrompt />
     </div>
   );
 };
@@ -166,7 +160,7 @@ const TestStkPrompt = () => {
                   type="tel"
                   value={form.phone}
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  placeholder="254712345678"
+                  placeholder="0712345678"
                   required
                 />
                 <small className="field-hint">{t('mpesa.testPhoneHint')}</small>

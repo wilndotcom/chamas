@@ -195,24 +195,6 @@ final class MpesaConfig
             && preg_match('/your[-_]?domain|example\.com|localhost/i', $url) !== 1;
     }
 
-    /**
-     * The C2B endpoints Safaricom posts to.
-     *
-     * Derived from the configured callback URL by replacing its last segment, so
-     * an operator who set https://chama.co.ke/api/mpesa/callback ends up with
-     * /api/mpesa/confirmation and /api/mpesa/validation. Spelling them out as
-     * separate settings would mean two more fields to keep in step with the first.
-     */
-    public static function c2bEndpoints(array $config): array
-    {
-        $base = rtrim((string) ($config['callbackUrl'] ?? ''), '/');
-        $trimmed = (string) preg_replace('~/[^/]*$~', '', $base);
-
-        return [
-            'confirmation' => $trimmed . '/confirmation',
-            'validation' => $trimmed . '/validation',
-        ];
-    }
 
     /** Drops the cache so a newly saved value is picked up at once. */
     public static function invalidate(): void
