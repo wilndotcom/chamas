@@ -289,23 +289,23 @@ console.log('\n=== the production guard ===\n');
       * what Safaricom cannot reach - so restoring "what was there" is not the
       * same as leaving it working.
       */
-    if (before.callback_reachable && before.callback_url) {
-      await api(admin, 'PUT', '/api/settings', { values: { mpesa_callback_url: before.callback_url } });
-      const back = await api(admin, 'GET', '/api/mpesa/status');
-      check('the real callback is restored afterwards',
-        back.body?.callback_url === before.callback_url && back.body?.callback_reachable === true,
-        `callback is now ${back.body?.callback_url}`);
-    } else {
-      await api(admin, 'PUT', '/api/settings', { values: { mpesa_callback_url: '' } });
+    /*
+     * Restore exactly what was there.
+     *
+     * These suites share the group's live database with the running app, so
+     * "leave it tidier than you found it" is not a courtesy - it is how a test
+     * run silently deletes the callback a live install depends on, and the very
+     * next prompt from localhost is refused. An earlier version restored only
+     * when the value was reachable, which meant running against a local test
+     * server wrote an empty callback over the real one.
+     */
+    await api(admin, 'PUT', '/api/settings',
+      { values: { mpesa_callback_url: before.callback_url || '' } });
 
-      // What matters is the stored value, not the resolved one: on this test
-      // server the app will always work out a localhost callback for itself,
-      // and that is harmless because it is never saved.
-      const row = (await api(admin, 'GET', '/api/settings')).body.settings
-        .find((s) => s.setting_key === 'mpesa_callback_url');
-      check('no undeliverable callback was saved', !row?.setting_value,
-        `a callback Safaricom cannot reach is still saved: ${row?.setting_value}`);
-    }
+    const back = await api(admin, 'GET', '/api/mpesa/status');
+    check('the callback is exactly as it was before',
+      back.body?.callback_url === before.callback_url,
+      `was "${before.callback_url}", now "${back.body?.callback_url}"`);
   }
 }
 

@@ -97,4 +97,12 @@ if (sent) {
 
 console.log(`\npassed ${4 + (phone ? 1 : 0) - failures.length}, failed ${failures.length}`);
 if (failures.length) for (const f of failures) console.log(`  - ${f}`);
+
+/*
+ * This suite's whole purpose is to leave a working callback saved - that is
+ * the fix it is proving. So it deliberately does not restore the previous
+ * value. It does refuse to overwrite a working one, above, so the worst it can
+ * do is leave the app pointing at a public address that has stopped working,
+ * which the watcher notices and replaces.
+ */
 process.exit(failures.length ? 1 : 0);

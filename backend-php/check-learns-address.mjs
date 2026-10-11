@@ -45,6 +45,24 @@ const login = async (base) =>
 const local = await login(LOCAL);
 const public_ = await login(`${PUBLIC}/the-team`);
 
+const real = await status();
+
+/*
+ * Everything this suite does to the live app, undone at the end whatever
+ * happens - including the run where no tunnel is available and the app would
+ * otherwise be left with nothing saved.
+ */
+const restore = async () => {
+  if (real.callback_url) {
+    await api(LOCAL, local, 'PUT', '/api/settings',
+      { values: { mpesa_callback_url: real.callback_url } });
+  }
+
+  const now = (await status()).callback_url;
+  check("the app's own confirmation address is put back", now === real.callback_url,
+    `now "${now}", was "${real.callback_url}"`);
+};
+
 console.log(`\n  browsing at    : ${LOCAL}`);
 console.log(`  public address : ${PUBLIC}\n`);
 
@@ -75,8 +93,9 @@ check('the till is untouched by any of this', /^\d{5,10}$/.test(learned.values?.
 console.log('\n=== and localhost works afterwards ===\n');
 
 if (!PHONE) {
+  await restore();
   console.log('  set TEST_PHONE to also send a real prompt');
-  console.log(`\npassed ${4 - failures.length}, failed ${failures.length}`);
+  console.log(`\npassed ${5 - failures.length}, failed ${failures.length}`);
   process.exit(failures.length ? 1 : 0);
 }
 
@@ -93,6 +112,8 @@ if (sent) {
   console.log(`  Safaricom: ${res.body.customer_message}`);
 }
 
-console.log(`\npassed ${5 - failures.length}, failed ${failures.length}`);
+await restore();
+
+console.log(`\npassed ${6 - failures.length}, failed ${failures.length}`);
 if (failures.length) for (const f of failures) console.log(`  - ${f}`);
 process.exit(failures.length ? 1 : 0);

@@ -30,13 +30,23 @@ async function api(token, method, path, body) {
   return { status: res.status, body: parsed, text };
 }
 
+import { snapshotConfig, restoreConfig } from './config-guard.mjs';
+
 const admin = (await api(null, 'POST', '/api/auth/admin-login',
   { identifier: 'admin', password: 'admin123' })).body?.token;
+
+/*
+ * Clears the callback on purpose, to prove the app works one out for itself.
+ *
+ * That means this suite leaves the live app with nothing saved unless it puts
+ * it back - unconditionally, on every way out. A run without a tunnel to hand
+ * must not be allowed to leave the group unable to take a payment.
+ */
+const saved = await snapshotConfig(api, admin);
 
 const before = (await api(admin, 'GET', '/api/mpesa/status')).body;
 console.log(`\n  in use now: till ${before.values.shortcode}, callback ${before.callback_url}`);
 
-// Clear the callback saved during earlier testing, so the app works it out.
 await api(admin, 'PUT', '/api/settings', { values: { mpesa_callback_url: '' } });
 
 const cleared = (await api(admin, 'GET', '/api/mpesa/status')).body;
@@ -44,8 +54,10 @@ console.log(`  worked out: till ${cleared.values.shortcode}, callback ${cleared.
   + ` (${cleared.source.callbackUrl}, reachable ${cleared.callback_reachable})\n`);
 
 if (!TUNNEL) {
-  console.log('  set TUNNEL_URL to test a live prompt; nothing else to check here');
-  process.exit(0);
+  const problems = await restoreConfig(api, admin, saved,
+    (p) => console.log(`  WARNING: ${p}`));
+  console.log('  set TUNNEL_URL to test a live prompt; configuration restored');
+  process.exit(problems.length ? 1 : 0);
 }
 
 const via = async (path, body, token) => {
@@ -87,6 +99,15 @@ check('no Safaricom error', !res.body?.error && !res.body?.daraja_code, res.text
 
 console.log(`\n  checkout: ${res.body?.checkout_request_id}`);
 console.log(`  till used: ${cleared.values.shortcode}`);
+
+// The live app is put back before the verdict, so a failing run cannot leave
+// the group without a confirmation address.
+const problems = await restoreConfig(api, admin, saved, (p) => failures.push(p));
+
+if (problems.length) {
+  console.log('\n  the live configuration could not be fully restored:');
+  for (const p of problems) console.log(`    ${p}`);
+}
 
 console.log(`\npassed ${7 - failures.length}, failed ${failures.length}`);
 if (failures.length) for (const f of failures) console.log(`  - ${f}`);
