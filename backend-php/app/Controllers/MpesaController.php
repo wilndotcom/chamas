@@ -8,6 +8,7 @@ use TheTeam\Database;
 use TheTeam\Log;
 use TheTeam\Request;
 use TheTeam\Response;
+use TheTeam\Utils\MpesaAudit;
 use TheTeam\Utils\MpesaConfig;
 use TheTeam\Utils\Notifier;
 use TheTeam\Utils\Phone;
@@ -427,6 +428,24 @@ final class MpesaController
             $stk = $body['Body']['stkCallback'] ?? [];
             $resultCode = $stk['ResultCode'] ?? null;
             $checkoutId = $stk['CheckoutRequestID'] ?? null;
+
+            /*
+             * Written before anything decides what to do with it.
+             *
+             * The one question that cannot be answered from inside this app is
+             * which till the money was actually charged to: the setting here is
+             * only a claim, and Safaricom hands out a checkout id for any
+             * shortcode at all. So its reply is kept whole, while the raw request
+             * is still in hand. A callback that cannot be explained afterwards is
+             * a payment nobody can trace.
+             */
+            MpesaAudit::record('callback', [
+                'result_code' => $resultCode,
+                'result_desc' => $stk['ResultDesc'] ?? null,
+                'checkout_request_id' => $checkoutId,
+                'shortcode_configured' => MpesaConfig::get()['shortcode'] ?? null,
+                'body' => $body,
+            ]);
 
             if ((int) $resultCode === 0) {
                 $items = $stk['CallbackMetadata']['Item'] ?? [];
