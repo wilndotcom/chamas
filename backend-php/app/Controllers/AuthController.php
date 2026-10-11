@@ -6,6 +6,7 @@ namespace TheTeam\Controllers;
 
 use TheTeam\Auth;
 use TheTeam\Database;
+use TheTeam\Log;
 use TheTeam\Request;
 use TheTeam\Response;
 
