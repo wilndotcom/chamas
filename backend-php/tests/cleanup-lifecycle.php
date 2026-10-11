@@ -28,8 +28,14 @@ Env::load(dirname(__DIR__) . '/backend');
 
 echo "\nFinding lifecycle test records...\n";
 
+/*
+ * Both check scripts create members under these names. Matched by name rather
+ * than by a stored id so the cleanup works after a run that failed part way
+ * through and never recorded what it made.
+ */
 $members = Database::all(
-    "SELECT id, full_name, phone FROM members WHERE full_name = 'Lifecycle Test'"
+    "SELECT id, full_name, phone FROM members
+      WHERE full_name IN ('Lifecycle Test', 'Transparency Test')"
 );
 
 if ($members === []) {

@@ -110,6 +110,10 @@ const cases = [
   ['GET', '/api/welfare/contributions'],
   ['GET', '/api/welfare/requests'],
   ['GET', '/api/welfare/my'],                 // admin token on a member route: 403 from both
+  ['GET', '/api/transparency'],               // member-only: 403 from an admin token
+  ['GET', '/api/settings'],                   // admin: the masked view
+  ['GET', '/api/settings/public'],            // no token needed
+  ['GET', '/api/settings/about'],
   ['GET', '/api/ledger'],                     // still unported: PHP 501 vs node 200 - see below
 ];
 
