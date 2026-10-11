@@ -123,8 +123,11 @@ if (token) {
 }
 
 console.log('\n=== routing ===');
+// /api/ledger is one of the groups still to be ported. A pending group must say
+// so explicitly: a 501 names the missing work, where a 404 would look like a bug
+// in code that is otherwise finished.
 await check('unported group says 501 and names itself', 501, 'not been ported to PHP yet',
-  'GET', '/api/loans');
+  'GET', '/api/ledger');
 await check('unknown api GET is 404 JSON', 404, 'Route not found', 'GET', '/api/nonexistent-thing');
 await check('unknown api POST is 404, not a misleading 405', 404, 'Route not found',
   'POST', '/api/nonexistent-thing', { body: {} });

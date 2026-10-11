@@ -23,8 +23,15 @@ use TheTeam\Response;
  */
 final class AuthController
 {
-    /** Bcrypt cost. Matches the Node side's 12. */
-    private const COST = 12;
+    /**
+     * Bcrypt work factor.
+     *
+     * A cost, not an algorithm: it is passed as password_hash()'s third
+     * argument. Passing it as the second asks for an algorithm called "12",
+     * which fails and takes password changes down with it. Matches the Node
+     * side, so existing passwords keep verifying on either backend.
+     */
+    private const BCRYPT_COST = 12;
 
     public static function adminLogin(Request $r): void
     {
@@ -223,7 +230,7 @@ final class AuthController
 
         Database::run(
             'UPDATE admins SET password_hash = ? WHERE id = ?',
-            [password_hash($next, self::COST), $admin['id']]
+            [password_hash($next, PASSWORD_BCRYPT, ['cost' => self::BCRYPT_COST]), $admin['id']]
         );
 
         // Recorded so a password change can be explained in an audit later.

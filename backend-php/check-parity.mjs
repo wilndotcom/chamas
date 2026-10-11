@@ -103,7 +103,14 @@ const cases = [
   ['GET', '/api/contributions'],
   ['GET', '/api/contributions/summary'],
   ['GET', '/api/contributions/member/50'],
-  ['GET', '/api/loans'],                      // still unported: PHP 501 vs node 200 - see below
+  ['GET', '/api/loans'],
+  ['GET', '/api/loans/pending'],
+  ['GET', '/api/loans/mine'],                 // admin token on a member route: 403 from both
+  ['GET', '/api/welfare/fund'],
+  ['GET', '/api/welfare/contributions'],
+  ['GET', '/api/welfare/requests'],
+  ['GET', '/api/welfare/my'],                 // admin token on a member route: 403 from both
+  ['GET', '/api/ledger'],                     // still unported: PHP 501 vs node 200 - see below
 ];
 
 for (const [method, path] of cases) {

@@ -155,6 +155,66 @@ final class Auth
         return self::require($request, self::TYPE_MEMBER);
     }
 
+    /**
+     * Accepts either an admin or a member token.
+     *
+     * For endpoints both portals legitimately need - a member contributing to
+     * welfare, for instance, while an admin records on their behalf. The token
+     * type is on the principal either way, and the caller decides what each type
+     * may do, so requiring one specific type would only push the logic into the
+     * frontend.
+     *
+     * An admin token gets its role and permissions attached, so the principal
+     * means the same thing here as under require(). That is what lets the welfare
+     * contribution check an admin's record_contributions right rather than
+     * treating every admin as having none.
+     */
+    public static function requireEither(Request $request): array
+    {
+        $token = $request->bearerToken();
+
+        if ($token === null) {
+            Response::error('Access denied. No token provided.', 401);
+        }
+
+        $claims = self::decode($token);
+
+        if ($claims === null) {
+            Response::error('Access denied. Invalid or expired token.', 401);
+        }
+
+        $type = $claims['type'] ?? '';
+
+        if ($type !== self::TYPE_ADMIN && $type !== self::TYPE_MEMBER) {
+            Response::error('This endpoint requires a member token.', 403);
+        }
+
+        $principal = self::resolvePrincipal((int) ($claims['id'] ?? 0), $type);
+
+        if ($principal === null) {
+            Response::error('Invalid token.', 401);
+        }
+
+        // A suspended account is refused whichever portal it presents to. Adding
+        // this would introduce no new rejection for a working caller, and leaving
+        // it out would let a deactivated member use the dual-role endpoints.
+        if ($type === self::TYPE_ADMIN) {
+            if (empty($principal['is_active'])) {
+                Response::error('Account is deactivated.', 403);
+            }
+        } elseif (($principal['status'] ?? '') !== 'active') {
+            Response::error('Account is not active.', 403);
+        }
+
+        $principal['type'] = $type;
+        $principal['impersonated'] = !empty($claims['impersonated_by']);
+        $principal['claims'] = $claims;
+
+        $request->user = $principal;
+
+        return $principal;
+    }
+
     /** Requires a super admin, for impersonation and role management. */
     public static function requireSuperAdmin(Request $request): array
     {

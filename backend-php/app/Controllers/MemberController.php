@@ -28,7 +28,15 @@ use TheTeam\Utils\LoanMath;
 final class MemberController
 {
     /** Bcrypt cost. Matches the Node side. */
-    private const COST = 12;
+    /**
+     * Bcrypt work factor.
+     *
+     * A cost, not an algorithm. Passed as password_hash()'s third argument;
+     * passing it as the second asks for an algorithm called "12" and fails.
+     * Matches the Node side, so a member's existing password keeps working
+     * whichever backend answers.
+     */
+    private const BCRYPT_COST = 12;
 
     /**
      * Tables whose rows carry financial or audit meaning for a member.
@@ -279,7 +287,7 @@ final class MemberController
                     !empty($body['email']) ? $body['email'] : null,
                     $phone,
                     !empty($body['id_number']) ? $body['id_number'] : null,
-                    password_hash($password, self::COST),
+                    password_hash($password, PASSWORD_BCRYPT, ['cost' => self::BCRYPT_COST]),
                     !empty($body['emergency_contact_name']) ? $body['emergency_contact_name'] : null,
                     !empty($body['emergency_contact_phone']) ? $body['emergency_contact_phone'] : null,
                 ]
