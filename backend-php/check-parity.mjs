@@ -123,7 +123,25 @@ const cases = [
   ['GET', '/api/mpesa/status'],
   // The callbacks are public in both backends, and must answer the same thing.
   ['POST', '/api/mpesa/validation', {}],
-  ['GET', '/api/ledger'],                     // still unported: PHP 501 vs node 200 - see below
+  ['GET', '/api/admins'],
+  ['GET', '/api/admins/roles'],
+  ['GET', '/api/admins/audit-logs'],
+  ['GET', '/api/roles'],
+  ['GET', '/api/chama/profile'],
+  ['GET', '/api/payment-gateways'],
+  ['GET', '/api/me/language'],
+  ['GET', '/api/admin-permissions/1'],
+  ['GET', '/api/notifications'],
+  ['GET', '/api/notifications/templates'],
+  ['GET', '/api/notifications/channels'],
+  ['GET', '/api/reports/financial-summary'],
+  ['GET', '/api/reports/monthly'],
+  ['GET', '/api/reports/growth'],
+  ['GET', '/api/reports/reminders'],
+  ['GET', '/api/reports/expenses'],
+  ['GET', '/api/reports/member/50'],
+  ['GET', '/api/ledger/cashbook'],
+  ['POST', '/api/account/request-reset', { identifier: 'definitely-not-a-real-account', type: 'admin' }],
 ];
 
 for (const [method, path, body] of cases) {

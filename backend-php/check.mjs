@@ -123,11 +123,37 @@ if (token) {
 }
 
 console.log('\n=== routing ===');
-// /api/ledger is one of the groups still to be ported. A pending group must say
-// so explicitly: a 501 names the missing work, where a 404 would look like a bug
-// in code that is otherwise finished.
-await check('unported group says 501 and names itself', 501, 'not been ported to PHP yet',
-  'GET', '/api/ledger');
+// Nothing is pending any more, so /api/health must say so. The pending list is
+// kept in the response rather than removed: it is the one thing that shows a
+// future change left part of the port undone, and dropping it would take that
+// signal with it.
+{
+  const res = await fetch(`${BASE}/api/health`);
+  const body = await res.json();
+
+  const pending = body.port?.pending ?? [];
+  const mounted = body.port?.mounted ?? [];
+
+  // check() above takes an HTTP request; these are plain assertions, so they are
+  // made directly rather than through it.
+  if (Array.isArray(body.port?.pending) && pending.length === 0) {
+    passed++;
+    console.log(`  PASS  ${'health reports the port as complete'.padEnd(44)} ${mounted.length} groups`);
+  } else {
+    failed++;
+    failures.push(`port is incomplete: ${pending.join(', ')}`);
+    console.log(`  FAIL  ${'health reports the port as complete'.padEnd(44)} pending: ${pending.join(', ')}`);
+  }
+
+  if (mounted.length >= 18) {
+    passed++;
+    console.log(`  PASS  ${'every endpoint group is mounted'.padEnd(44)} ${mounted.length}`);
+  } else {
+    failed++;
+    failures.push(`only ${mounted.length} groups mounted`);
+    console.log(`  FAIL  ${'every endpoint group is mounted'.padEnd(44)} only ${mounted.length}`);
+  }
+}
 await check('unknown api GET is 404 JSON', 404, 'Route not found', 'GET', '/api/nonexistent-thing');
 await check('unknown api POST is 404, not a misleading 405', 404, 'Route not found',
   'POST', '/api/nonexistent-thing', { body: {} });

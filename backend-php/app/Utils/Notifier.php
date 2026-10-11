@@ -17,93 +17,59 @@ use TheTeam\Log;
  * The important behaviour is the one that is easy to skip. Sending is allowed to
  * fail, and a failure must never stop the action that triggered it: a member's
  * welfare request is not refused because an SMS gateway is unreachable, and the
- * money is still recorded. That is why send() reports rather than throws, and why
- * every caller ignores the result.
+ * money is still recorded anyway. That is why dispatch() reports rather than
+ * throws, and why callers check the result for display but never for control
+ * flow.
  *
- * A message is also never allowed to block the response. dispatch() is called
- * fire-and-forget, so it returns immediately and does its work afterwards.
+ * The return shape matches the Node version's dispatch(), which resolves with
+ * {success, skipped, reason}: callers such as the password reset tell the user
+ * when a code did not arrive, which is otherwise indistinguishable from somebody
+ * who simply never received it.
  */
 final class Notifier
 {
-    /** @var array<string, array<int, array>> Messages queued for this request. */
-    private static array $pending = [];
-
     /**
-     * Queues a message on a channel.
+     * Sends one message.
      *
-     * Returns immediately. Nothing is sent inline, because an SMS gateway taking
-     * two seconds would otherwise add two seconds to a request the user is
-     * waiting on - and the outcome is not something the response depends on.
+     * @return array{success:bool, skipped?:bool, reason?:string, error?:string}
      */
-    public static function dispatch(string $channel, string $to, string $message): void
+    public static function dispatch(string $channel, string $to, string $message): array
     {
         if (trim($to) === '' || trim($message) === '') {
             // Nothing worth sending to. Not an error: a member with no phone on
             // file is common, and warning about it would fill the log with noise
             // that hides real problems.
-            return;
+            return ['success' => false, 'skipped' => true, 'reason' => 'No contact address on file.'];
         }
 
-        self::$pending[$channel][] = ['to' => $to, 'message' => $message];
+        try {
+            return self::send($channel, $to, $message);
+        } catch (\Throwable $e) {
+            // Swallowed deliberately. The caller already has their response, and
+            // a notification failure is not the user's problem to solve at that
+            // moment.
+            Log::warn(sprintf(
+                '[notifier] %s to %s failed: %s',
+                $channel,
+                self::maskPhone($to),
+                $e->getMessage()
+            ));
 
-        // Under the CLI there is no long-lived process to flush at the end of
-        // the request, so it happens now. On a web request sendPending() is
-        // called once the response has been written.
-        if (PHP_SAPI === 'cli') {
-            self::sendPending();
-        }
-    }
-
-    /**
-     * Sends everything queued, after the response has been written.
-     *
-     * Called from the shutdown handler in index.php. Registering a shutdown
-     * function rather than sending inline is what keeps a slow gateway off the
-     * critical path.
-     */
-    public static function sendPending(): void
-    {
-        if (self::$pending === []) {
-            return;
-        }
-
-        $queued = self::$pending;
-        self::$pending = [];
-
-        foreach ($queued as $channel => $messages) {
-            foreach ($messages as $message) {
-                try {
-                    self::send($channel, $message['to'], $message['message']);
-                } catch (\Throwable $e) {
-                    // Deliberately swallowed. The caller already has their
-                    // response, and a notification failure is not the user's
-                    // problem to solve at that moment.
-                    Log::warn(sprintf(
-                        '[notifier] %s to %s failed: %s',
-                        $channel,
-                        self::maskPhone($message['to']),
-                        $e->getMessage()
-                    ));
-                }
-            }
+            return ['success' => false, 'error' => $e->getMessage()];
         }
     }
 
     /**
-     * Sends one message.
+     * Sends one message, without the failure handling.
      *
-     * Returns the outcome rather than throwing, matching the Node version's
-     * dispatch(), which resolves with {success, skipped, reason} or a provider's
-     * own response.
+     * @return array{success:bool, skipped?:bool, reason?:string}
      */
     public static function send(string $channel, string $to, string $message): array
     {
-        $enabledKey = $channel . '_enabled';
-
         // A channel that is switched off is reported as skipped rather than
         // failed. The difference matters to a caller deciding whether to warn
         // anybody: nothing went wrong, the group chose not to use this channel.
-        if (!Settings::getBool($enabledKey, false)) {
+        if (!Settings::getBool('channel_' . $channel . '_enabled', false)) {
             return [
                 'success' => false,
                 'skipped' => true,
@@ -112,8 +78,8 @@ final class Notifier
         }
 
         // Provider credentials are not ported yet. Reported honestly rather than
-        // silently succeeding, so the notifications group can be completed and
-        // this becomes a real send.
+        // silently succeeding, so a code that was never sent cannot be mistaken
+        // for one that was.
         return [
             'success' => false,
             'skipped' => true,

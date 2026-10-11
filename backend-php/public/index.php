@@ -223,22 +223,6 @@ if ($basePath !== '' && ($path === $basePath || str_starts_with($path, $basePath
 require_once $base . '/app/RateLimit.php';
 RateLimit::init(sys_get_temp_dir());
 
-/*
- * Notifications go out after the response is written.
- *
- * Registered as a shutdown function so a member's request returns the moment
- * the money is recorded, and the SMS follows. Sending inline would add the
- * gateway's response time to a request the user is waiting on, for a message
- * whose delivery nobody is waiting to see.
- */
-register_shutdown_function(static function (): void {
-    if (headers_sent()) {
-        return;
-    }
-
-    \TheTeam\Utils\Notifier::sendPending();
-});
-
 $router = new Router();
 
 /*
