@@ -14,6 +14,24 @@
     RewriteRule ^$ index.php [L]
 </IfModule>
 
+# Pass the Authorization header through to PHP.
+#
+# Apache drops it when mod_rewrite rewrites a request, which it does here: every
+# /api/... request is rewritten from this folder into backend/. The result is that
+# logging in succeeds, the token is issued, and every subsequent call comes back
+# 401 with "Access denied. No token provided" - the header is simply not there by
+# the time PHP looks for it.
+#
+# Copied into an environment variable, which does survive the rewrite. This is
+# the documented Apache workaround, and the reason it is here rather than in the
+# PHP is that the header is being removed before any PHP runs.
+<IfModule mod_setenvif.c>
+    SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+</IfModule>
+
+# For CGI/FastCGI the same header is passed rather than copied.
+CGIPassAuth On
+
 # Never serve the vendor directory or the application source directly. Apache
 # will execute .php files here, but a missed rule would expose the code, and the
 # cost of getting this wrong is publishing the application's internals.

@@ -30,15 +30,27 @@
     # app receives index.html where it expected JSON: a parse error that points
     # nowhere near the cause.
     #
-    # The .htaccess flag is required because the target is a file path, not a URL.
-    # Without it Apache redirects the browser and the Authorization header is
-    # dropped on the follow-up, so every request after signing in comes back
-    # logged out.
-    RewriteRule ^/?api(/.*)?$ backend/index.php [QSA,L]
+    # [END], not [QSA,L] - and the reason matters.
+    #
+    # The target is a file path inside this folder, so Apache's per-directory
+    # handling applies. With QSA the rewritten path is treated as a URL and
+    # Apache answers with a redirect to the resolved location; a 301 drops the
+    # Authorization header, so every request after signing in comes back 401 and
+    # the app looks like the login worked but nothing loads.
+    #
+    # [END] stops rule processing and serves the file directly, with the header
+    # intact. The query string is passed through automatically, which is all
+    # QSA was needed for here.
+    RewriteRule ^/?api(/.*)?$ backend/index.php [END]
 
     # Everything else is an app route, handled by React in the browser.
     # This is what makes a shared or bookmarked link work rather than 404.
-    RewriteRule ^ /index.html [L]
+    #
+    # The substitution has no leading slash. In a .htaccess, "/index.html" means
+    # the index.html at the SERVER ROOT - which on XAMPP is the XAMPP page rather
+    # than this app - while a bare "index.html" means the one in this folder.
+    # That distinction is the whole reason a deep link works at all.
+    RewriteRule ^ index.html [L]
 </IfModule>
 
 <IfModule !mod_rewrite.c>
