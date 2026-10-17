@@ -15,6 +15,9 @@
  * would be indistinguishable from a bug.
  */
 
+import { ADMIN_PASSWORD } from './admin-credential.mjs';
+
+
 const PHP = process.env.PHP_BASE || 'http://localhost:5050';
 const NODE = process.env.NODE_BASE || 'http://localhost:5000';
 
@@ -26,7 +29,7 @@ async function login(base) {
   const res = await fetch(`${base}/api/auth/admin-login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ identifier: 'admin', password: 'admin123' }),
+    body: JSON.stringify({ identifier: 'admin', password: ADMIN_PASSWORD }),
   });
   const json = await res.json().catch(() => null);
   if (!json?.token) throw new Error(`login failed at ${base}: ${res.status}`);

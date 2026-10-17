@@ -13,6 +13,9 @@
  * Run:  node check-db-shapes.mjs
  */
 
+import { ADMIN_PASSWORD } from './admin-credential.mjs';
+
+
 const PHP = process.env.PHP_BASE || 'http://localhost:5050';
 
 let passed = 0;
@@ -32,7 +35,7 @@ async function login() {
   const res = await fetch(`${PHP}/api/auth/admin-login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ identifier: 'admin', password: 'admin123' }),
+    body: JSON.stringify({ identifier: 'admin', password: ADMIN_PASSWORD }),
   });
   return res.json();
 }

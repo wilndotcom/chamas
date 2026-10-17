@@ -321,14 +321,47 @@ The script is safe to re-run — it uses upserts, so you can run it any time to 
 
 ### Login Credentials
 
-**Admin portal** (login with email):
+The seed script creates every administrator account on **one password that you
+supply**. There is no default. A password written into a script is a password
+that works on every install the script has ever been run against, and this
+repository is public - so publishing one would publish a working login.
 
-| Role | Email | Password |
-|------|-------|----------|
-| Super Admin | `admin@theteam.com` | `admin123` |
-| Treasurer | `treasurer@theteam.com` | `admin123` |
-| Chairperson | `chair@theteam.com` | `admin123` |
-| Secretary | `secretary@theteam.com` | `admin123` |
+```bash
+cd backend
+ADMIN_PASSWORD='choose-something-long' node seed.js
+```
+
+```powershell
+# PowerShell
+cd backend
+$env:ADMIN_PASSWORD = 'choose-something-long'; node seed.js
+```
+
+Leave `ADMIN_PASSWORD` unset and the script generates a strong one and prints it
+once, on the line that says so. It is not written to disk: save it at the moment
+it appears, or run the seed again with `ADMIN_PASSWORD` set.
+
+**Admin portal** (login with username or email):
+
+| Role | Username | Email |
+|------|----------|-------|
+| Super Admin | `admin` | `admin@theteam.com` |
+| Treasurer | `treasurer` | `treasurer@theteam.com` |
+| Chairperson | `chair` | `chair@theteam.com` |
+| Secretary | `secretary` | `secretary@theteam.com` |
+
+All four are created on that same password. Change the ones you intend to keep,
+from Settings, once you are in.
+
+### Checking a deployment
+
+The suites under `backend-php/` sign in as the super admin, so they need the
+same password. They read it from `ADMIN_PASSWORD` in `backend/.env`, which is in
+`.gitignore` and never published:
+
+```
+ADMIN_PASSWORD=choose-something-long
+```
 
 **Member portal** (login with phone):
 
@@ -337,8 +370,8 @@ The script is safe to re-run — it uses upserts, so you can run it any time to 
 | Mary Wanjiku | `0711000001` | `member123` |
 | John Otieno | `0711000002` | `member123` |
 
-> These are demo credentials. **Change every one of them before going live** — see
-> [DEPLOYMENT.md](DEPLOYMENT.md) for creating a real super admin with no demo data.
+> The members above are demo rows and `member123` belongs to them alone. Every
+> other password in the project is either generated for you or set by hand.
 
 ### Super Admin: Portal Switching (no password required)
 

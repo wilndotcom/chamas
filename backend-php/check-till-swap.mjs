@@ -7,6 +7,9 @@
  *
  *   node backend-php/check-till-swap.mjs
  */
+
+import { ADMIN_PASSWORD } from './admin-credential.mjs';
+
 const BASE = process.env.PHP_BASE || 'http://localhost:8080/the-team';
 
 const failures = [];
@@ -32,7 +35,7 @@ async function api(token, method, path, body) {
 }
 
 const admin = (await api(null, 'POST', '/api/auth/admin-login',
-  { identifier: 'admin', password: 'admin123' })).body?.token;
+  { identifier: 'admin', password: ADMIN_PASSWORD })).body?.token;
 
 const original = (await api(admin, 'GET', '/api/mpesa/status')).body.values.shortcode;
 const swap = process.env.SWAP_TILL || '600000';

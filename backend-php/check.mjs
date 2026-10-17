@@ -12,6 +12,9 @@
  * Run:  node check.mjs
  */
 
+import { ADMIN_PASSWORD } from './admin-credential.mjs';
+
+
 const BASE = process.env.PHP_BASE || 'http://localhost:5050';
 
 let passed = 0;
@@ -78,7 +81,7 @@ await check('missing fields', 400, 'Enter your username or email', 'POST',
   '/api/auth/admin-login', { body: {} });
 
 const login = await check('correct password', 200, '"success":true', 'POST',
-  '/api/auth/admin-login', { body: { identifier: 'admin', password: 'admin123' } });
+  '/api/auth/admin-login', { body: { identifier: 'admin', password: ADMIN_PASSWORD } });
 
 console.log('\n=== admin login accepts username OR email ===');
 // Uses the address the login response actually reported rather than a hardcoded
@@ -87,7 +90,7 @@ console.log('\n=== admin login accepts username OR email ===');
 const adminEmail = login?.json?.admin?.email;
 if (adminEmail) {
   await check('login by email address', 200, '"success":true', 'POST',
-    '/api/auth/admin-login', { body: { identifier: adminEmail, password: 'admin123' } });
+    '/api/auth/admin-login', { body: { identifier: adminEmail, password: ADMIN_PASSWORD } });
 } else {
   console.log('  SKIP  email login (login response carried no email)');
 }

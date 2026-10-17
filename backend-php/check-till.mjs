@@ -3,6 +3,9 @@
  *
  * Run against the PHP server: node backend-php/check-till.mjs
  */
+
+import { ADMIN_PASSWORD } from './admin-credential.mjs';
+
 const BASE = process.env.PHP_BASE || 'http://localhost:5050';
 
 let passed = 0;
@@ -34,7 +37,7 @@ async function api(token, method, path, body) {
 }
 
 const login = await api(null, 'POST', '/api/auth/admin-login',
-  { identifier: 'admin', password: 'admin123' });
+  { identifier: 'admin', password: ADMIN_PASSWORD });
 const admin = login.body?.token;
 
 console.log('\n=== the form is one number ===\n');

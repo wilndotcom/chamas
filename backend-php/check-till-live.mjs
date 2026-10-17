@@ -5,6 +5,9 @@
  * falls back to the address it is reached on. Run:
  *   node backend-php/check-till-live.mjs
  */
+
+import { ADMIN_PASSWORD } from './admin-credential.mjs';
+
 const BASE = process.env.PHP_BASE || 'http://localhost:8080/the-team';
 const TUNNEL = process.env.TUNNEL_URL || '';
 
@@ -33,7 +36,7 @@ async function api(token, method, path, body) {
 import { snapshotConfig, restoreConfig } from './config-guard.mjs';
 
 const admin = (await api(null, 'POST', '/api/auth/admin-login',
-  { identifier: 'admin', password: 'admin123' })).body?.token;
+  { identifier: 'admin', password: ADMIN_PASSWORD })).body?.token;
 
 /*
  * Clears the callback on purpose, to prove the app works one out for itself.
@@ -76,7 +79,7 @@ const via = async (path, body, token) => {
 };
 
 const tun = (await via('/api/auth/admin-login',
-  { identifier: 'admin', password: 'admin123' })).body?.token;
+  { identifier: 'admin', password: ADMIN_PASSWORD })).body?.token;
 
 const remote = (await via('/api/mpesa/status', null, tun)).body;
 console.log(`  reached over the tunnel, the app works out: ${remote.callback_url}`

@@ -17,19 +17,57 @@ const DB = {
   database: process.env.DB_NAME || 'the_team_chama'
 };
 
+/**
+ * The password every administrator account is created with.
+ *
+ * This used to be the literal string 'admin123', written into each account
+ * below. That is a working login on any install seeded with it, and this
+ * repository is published - so anybody who read the source knew how to sign in
+ * to a running chama.
+ *
+ * It now comes from the environment, and is generated when it is not set.
+ * There is deliberately no fallback value: a fallback would have to live in
+ * this file, and this file is published.
+ *
+ *   Unix:                  ADMIN_PASSWORD=... node seed.js
+ *   PowerShell:            $env:ADMIN_PASSWORD='...'; node seed.js
+ *
+ * The checks under backend-php read ADMIN_PASSWORD too, so that they can sign
+ * in without carrying a password in the published source. The running app
+ * never needs it: what it stores and compares is the hash in the database.
+ */
+function randomPassword() {
+  // Look-alike characters are left out, because this gets read off a screen
+  // and typed in by hand. The length makes up for the smaller alphabet, and
+  // for far more than it needs to.
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+  const bytes = require('crypto').randomBytes(20);
+
+  let out = '';
+  for (let i = 0; i < 20; i++) {
+    out += alphabet[bytes[i] % alphabet.length];
+  }
+
+  // Grouped, so it can be read out loud across a room without losing a place.
+  return `${out.slice(0, 6)}-${out.slice(6, 12)}-${out.slice(12, 18)}`;
+}
+
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || randomPassword();
+const ADMIN_PASSWORD_WAS_GENERATED = !process.env.ADMIN_PASSWORD;
+
 const SUPER_ADMIN = {
   full_name: 'Super Admin',
   // Sign-in identifiers. Either one works, plus the email below.
   username: 'admin',
   email: 'admin@theteam.com',
   phone: '0712345678',
-  password: 'admin123'
+  password: ADMIN_PASSWORD
 };
 
 const DEMO_ADMINS = [
-  { full_name: 'Jane Treasurer', username: 'treasurer', email: 'treasurer@theteam.com', phone: '0722000001', password: 'admin123', role: 'treasurer' },
-  { full_name: 'Peter Chairperson', username: 'chair', email: 'chair@theteam.com', phone: '0722000002', password: 'admin123', role: 'chairperson' },
-  { full_name: 'Grace Secretary', username: 'secretary', email: 'secretary@theteam.com', phone: '0722000003', password: 'admin123', role: 'secretary' }
+  { full_name: 'Jane Treasurer', username: 'treasurer', email: 'treasurer@theteam.com', phone: '0722000001', password: ADMIN_PASSWORD, role: 'treasurer' },
+  { full_name: 'Peter Chairperson', username: 'chair', email: 'chair@theteam.com', phone: '0722000002', password: ADMIN_PASSWORD, role: 'chairperson' },
+  { full_name: 'Grace Secretary', username: 'secretary', email: 'secretary@theteam.com', phone: '0722000003', password: ADMIN_PASSWORD, role: 'secretary' }
 ];
 
 const DEMO_MEMBERS = [
@@ -56,9 +94,18 @@ async function run() {
        is_active = TRUE`,
     [SUPER_ADMIN.full_name, SUPER_ADMIN.username, SUPER_ADMIN.email, SUPER_ADMIN.phone, hash]
   );
-  console.log(
-    `Super admin ready: ${SUPER_ADMIN.username} or ${SUPER_ADMIN.email} / ${SUPER_ADMIN.password}`
-  );
+  if (ADMIN_PASSWORD_WAS_GENERATED) {
+    // Shown once and stored nowhere. If this scrolls past unread, the way back
+    // in is to run the seed again with ADMIN_PASSWORD set.
+    console.log('');
+    console.log('  No ADMIN_PASSWORD was set, so one has been generated. This is the only');
+    console.log('  time it is shown - it is not written to .env or to any file.');
+    console.log('');
+    console.log(`      ${ADMIN_PASSWORD}`);
+    console.log('');
+  }
+
+  console.log(`Super admin ready: ${SUPER_ADMIN.username} or ${SUPER_ADMIN.email}`);
 
   // Ensure the impersonation flag exists for databases seeded before it was added
   await conn.execute(
@@ -81,7 +128,7 @@ async function run() {
       [a.full_name, a.username, a.email, a.phone, h, rows[0].id]
     );
   }
-  console.log(`Demo admins ready (${DEMO_ADMINS.length})`);
+  console.log(`Demo admins ready (${DEMO_ADMINS.length}), on the same password as the super admin`);
 
   // Backfill a username for any admin added before this feature existed, so a
   // login screen that says "username" is not a lie for upgraded installs.

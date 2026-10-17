@@ -14,6 +14,9 @@
  * Run:  node check-settings.mjs
  */
 
+import { ADMIN_PASSWORD } from './admin-credential.mjs';
+
+
 const PHP = process.env.PHP_BASE || 'http://localhost:5050';
 
 let passed = 0;
@@ -53,7 +56,7 @@ async function remember(admin, key) {
 console.log(`\nchecking settings rules on ${PHP}\n`);
 
 const login = await api(null, 'POST', '/api/auth/admin-login',
-  { identifier: 'admin', password: 'admin123' });
+  { identifier: 'admin', password: ADMIN_PASSWORD });
 const admin = login.body?.token;
 
 if (!admin) {

@@ -11,6 +11,9 @@
  *
  *   PUBLIC_URL=... TEST_PHONE=... node backend-php/check-till-works.mjs
  */
+
+import { ADMIN_PASSWORD } from './admin-credential.mjs';
+
 const PUBLIC = (process.env.PUBLIC_URL || '').replace(/\/$/, '');
 const BASE = process.env.LOCAL_BASE || 'http://localhost:8080/the-team';
 const PHONE = process.env.TEST_PHONE;
@@ -38,7 +41,7 @@ async function api(base, token, method, path, body) {
 
 const login = async (base) =>
   (await api(base, null, 'POST', '/api/auth/admin-login',
-    { identifier: 'admin', password: 'admin123' })).body?.token;
+    { identifier: 'admin', password: ADMIN_PASSWORD })).body?.token;
 
 const admin = await login(BASE);
 const status = async () => (await api(BASE, admin, 'GET', '/api/mpesa/status')).body;

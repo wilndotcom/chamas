@@ -12,6 +12,9 @@
  *
  *   node backend-php/check-pin-callback.mjs
  */
+
+import { ADMIN_PASSWORD } from './admin-credential.mjs';
+
 const BASE = process.env.PHP_BASE || 'http://localhost:8080/the-team';
 const PUBLIC = (process.env.PUBLIC_URL || '').replace(/\/$/, '');
 
@@ -43,7 +46,7 @@ async function api(token, method, path, body) {
 }
 
 const admin = (await api(null, 'POST', '/api/auth/admin-login',
-  { identifier: 'admin', password: 'admin123' })).body?.token;
+  { identifier: 'admin', password: ADMIN_PASSWORD })).body?.token;
 
 const status = () => api(admin, 'GET', '/api/mpesa/status');
 const before = (await status()).body;

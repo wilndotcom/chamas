@@ -272,17 +272,20 @@ On startup it also checks the production essentials and tells you plainly what i
 ### Create the super admin and demo data
 
 ```bash
-NODE_ENV=production node seed.js
+NODE_ENV=production ADMIN_PASSWORD='choose-something-long' node seed.js
 ```
 
 > The `NODE_ENV=production` prefix matters. Without it the script reads `.env` and would seed
 > the wrong database.
 
-`seed.js` is safe to re-run — it uses upserts. It creates the super admin
-(`admin@theteam.com` / `admin123`), sample admins and members, and demo figures.
+`seed.js` is safe to re-run — it uses upserts. It creates the super admin,
+sample admins and members, and demo figures.
 
-> **Change the super admin password immediately after first login.** The seed password is a
-> starting point, not a real credential.
+The administrator password comes from `ADMIN_PASSWORD`, and there is no default.
+A default would have to be written into the script, the script is published, and
+a published password is a working login for every install that ran it. Leave the
+variable unset and the script generates a strong password and prints it once,
+without writing it anywhere — so set it rather than race to copy the output.
 
 If you want a production install with no demo data, skip the seed and insert the super admin
 yourself:
@@ -800,7 +803,7 @@ sudo journalctl -u mysql
 - [x] Rate limiting, with a tight limit on login and registration
 - [x] Role-based permissions enforced server-side on every route
 - [x] `.env.production` is `chmod 600`
-- [ ] **Change all seeded passwords** (`admin123`, `member123`)
+- [ ] **Change the demo member passwords** (`member123`) — administrator passwords are no longer seeded ones
 - [ ] Set a real `JWT_SECRET`
 - [ ] Configure daily offsite database backups
 

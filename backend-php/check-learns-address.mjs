@@ -8,6 +8,9 @@
  *
  *   PUBLIC_URL=... node backend-php/check-learns-address.mjs
  */
+
+import { ADMIN_PASSWORD } from './admin-credential.mjs';
+
 const LOCAL = process.env.LOCAL_BASE || 'http://localhost:8080/the-team';
 const PUBLIC = (process.env.PUBLIC_URL || '').replace(/\/$/, '');
 const PHONE = process.env.TEST_PHONE;
@@ -40,7 +43,7 @@ async function api(base, token, method, path, body) {
 
 const login = async (base) =>
   (await api(base, null, 'POST', '/api/auth/admin-login',
-    { identifier: 'admin', password: 'admin123' })).body?.token;
+    { identifier: 'admin', password: ADMIN_PASSWORD })).body?.token;
 
 const local = await login(LOCAL);
 const public_ = await login(`${PUBLIC}/the-team`);

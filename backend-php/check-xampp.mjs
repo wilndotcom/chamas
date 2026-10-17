@@ -13,6 +13,9 @@
  * reads the secret can sign a token for any administrator.
  */
 
+import { ADMIN_PASSWORD } from './admin-credential.mjs';
+
+
 const BASE = (process.env.PHP_BASE || 'http://localhost/the-team').replace(/\/$/, '');
 
 let passed = 0;
@@ -101,7 +104,7 @@ console.log('\n=== the API answers JSON, not HTML ===');
 console.log('\n=== it still logs in ===');
 {
   const login = await probe('/api/auth/admin-login', {
-    method: 'POST', body: { identifier: 'admin', password: 'admin123' },
+    method: 'POST', body: { identifier: 'admin', password: ADMIN_PASSWORD },
   });
 
   check('admin login works', login.status === 200 && login.json?.token,

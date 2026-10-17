@@ -7,6 +7,9 @@
  *
  *   PUBLIC_URL=... node backend-php/check-callback-arrives.mjs
  */
+
+import { ADMIN_PASSWORD } from './admin-credential.mjs';
+
 const PUBLIC = (process.env.PUBLIC_URL || '').replace(/\/$/, '');
 const PHONE = process.env.TEST_PHONE;
 
@@ -39,7 +42,7 @@ const check = (name, ok, detail = '') => {
 };
 
 const admin = (await api('POST', '/api/auth/admin-login',
-  { identifier: 'admin', password: 'admin123' })).body?.token;
+  { identifier: 'admin', password: ADMIN_PASSWORD })).body?.token;
 
 // A member to credit, so the recording has somewhere to land. The number is
 // written with a plus sign, because that is how a member copies it off an

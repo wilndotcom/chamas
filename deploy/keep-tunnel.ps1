@@ -31,6 +31,26 @@ function Write-Status($message) {
     Add-Content -Path (Join-Path $logDir 'keep-tunnel.log')
 }
 
+# Where the installed app keeps ADMIN_PASSWORD.
+$appEnv = 'C:\xampp\htdocs\the-team\backend\.env'
+
+# The password used to sign in and re-point the app.
+#
+# Read from the installed .env rather than written into this file. This script
+# is published, and it runs at every sign-in: a password belonging here would be
+# a live login for the chama sitting in a public repository.
+function Get-AdminPassword {
+  if (-not (Test-Path $appEnv)) { return $null }
+
+  $line = Get-Content $appEnv |
+    Where-Object { $_ -match '^\s*ADMIN_PASSWORD\s*=' } |
+    Select-Object -First 1
+
+  if (-not $line) { return $null }
+
+  return ($line -replace '^\s*ADMIN_PASSWORD\s*=\s*', '').Trim().Trim('"').Trim("'")
+}
+
 function Get-TunnelAddress {
   param(
     [int]$WaitSeconds = 30,
@@ -115,7 +135,7 @@ function Start-Tunnel {
 function Set-AppCallback($address) {
   $login = @{
     identifier = 'admin'
-    password   = 'admin123'
+    password   = (Get-AdminPassword)
   } | ConvertTo-Json
 
   $token = (Invoke-RestMethod -Method Post `
@@ -156,6 +176,11 @@ if (-not $address) {
 
 if (-not $address) {
   Write-Status 'cloudflared started but has not published an address yet'
+} elseif (-not (Get-AdminPassword)) {
+  # Re-pointing the app means signing in, and there is nothing to sign in with.
+  # Reported as itself rather than as ten failed connections, which is what the
+  # retry loop below would otherwise log.
+  Write-Status 'WARNING: no ADMIN_PASSWORD in the installed backend\.env, so the app cannot be pointed at the new address'
 } else {
   if ($address -ne $current) {
     $address | Set-Content -Path $urlFile -NoNewline
