@@ -8,7 +8,7 @@ import {
   Braces,
   AlertTriangle,
   CheckCircle,
-  Copy,
+
   MessageSquare,
   RefreshCw
 } from 'lucide-react';

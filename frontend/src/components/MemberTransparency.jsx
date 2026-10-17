@@ -7,8 +7,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer,
-  Cell
+  ResponsiveContainer
 } from 'recharts';
 import { Eye, ShieldQuestion } from 'lucide-react';
 import { useFormat } from '../context/FormatContext';
