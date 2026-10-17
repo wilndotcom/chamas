@@ -11,6 +11,9 @@
 
     Safe to re-run. It replaces the installed copy rather than adding to it, so
     a previous install never leaves stale files behind to be served by mistake.
+    Assets from the last fortnight of builds are carried across that replace, so
+    a tab that is already open keeps the chunks its bundle was built against
+    instead of failing the next time it opens a page. See the assemble step.
 
 .EXAMPLE
     pwsh deploy-xampp.ps1
@@ -159,10 +162,29 @@ Write-Ok 'Built'
 
 Write-Step 'Assembling the folder ...'
 
+$stash = $null
 if (Test-Path $install) {
     # A full replace. A partial copy is how an old index.html survives a deploy
     # and keeps loading asset filenames that no longer exist, which looks like a
     # caching problem and is not one.
+    #
+    # assets/ is the one exception, and it is set aside rather than deleted.
+    #
+    # Build output there is content-hashed, so a file's name is a hash of its
+    # contents: two builds either produce byte-identical files under the same
+    # name, or different files under different names. Nothing can be served
+    # wrongly. What it buys is the tab that is already open - it still holds the
+    # previous index bundle, whose lazy routes ask for the previous chunks, and
+    # every one of those was deleted by this step. Keeping them means a member
+    # part-way through a form is not interrupted by a deploy; the new chunks are
+    # picked up whenever that tab next loads normally.
+    $previousAssets = Join-Path $install 'assets'
+    if (Test-Path $previousAssets) {
+        $stash = Join-Path ([System.IO.Path]::GetTempPath()) "the-team-assets-$([guid]::NewGuid().ToString('N'))"
+        New-Item -ItemType Directory -Path $stash -Force | Out-Null
+        Copy-Item (Join-Path $previousAssets '*') $stash -Recurse -Force
+    }
+
     Remove-Item $install -Recurse -Force
 }
 
@@ -171,6 +193,37 @@ New-Item -ItemType Directory -Path $backendOut -Force | Out-Null
 
 # The built frontend.
 Copy-Item (Join-Path $dist '*') $install -Recurse -Force
+
+# Put the set-aside chunks back, beside this build's own.
+#
+# Only files the new build did not produce are restored, so the files that
+# actually run are always this build's. Anything older than the cutoff is
+# dropped: long enough that any tab still open by then has loaded a fresh build
+# at least once, short enough that the folder does not grow with every deploy
+# for the rest of the project's life.
+if ($stash -and (Test-Path $stash)) {
+    $assetsOut = Join-Path $install 'assets'
+    New-Item -ItemType Directory -Path $assetsOut -Force | Out-Null
+
+    $cutoff = (Get-Date).AddDays(-14)
+    $kept = 0
+
+    foreach ($file in (Get-ChildItem $stash -File)) {
+        if ($file.LastWriteTime -lt $cutoff) { continue }
+
+        $target = Join-Path $assetsOut $file.Name
+        if (Test-Path $target) { continue }
+
+        Copy-Item $file.FullName $target -Force
+        $kept++
+    }
+
+    Remove-Item $stash -Recurse -Force
+
+    if ($kept -gt 0) {
+        Write-Ok "Kept $kept asset file(s) from the previous build for tabs already open"
+    }
+}
 
 # The PHP backend. vendor/ is included because XAMPP has no Composer and the
 # app has to work with nothing else installed.

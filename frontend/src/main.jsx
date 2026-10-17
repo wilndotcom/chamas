@@ -11,8 +11,17 @@ import { I18nProvider } from './i18n/I18nContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import InstallPrompt from './components/InstallPrompt';
 import { registerServiceWorker } from './pwa';
+import { recoverFromRemovedChunks } from './preloadRecovery';
 import axios from 'axios';
 import './index.css';
+
+/*
+ * Registered before anything renders, because it has to be listening before the
+ * first lazy route is imported. A deploy that removed this build's chunks makes
+ * that import fail, and this turns the dead screen that follows into a reload
+ * onto the current build. See preloadRecovery.js.
+ */
+recoverFromRemovedChunks();
 
 /*
  * Where the API lives, derived from the same base as the router.
