@@ -227,9 +227,6 @@
   border-left: 4px solid var(--brand);
   box-shadow: var(--sh-md);
 }
-  background: var(--surface);
-  border-color: var(--line);
-}
 
 [data-mode='dark'] tbody tr:hover {
   background: var(--surface-2);
@@ -1082,11 +1079,6 @@ textarea.mono {
      inline; the default keeps the edge consistent everywhere else. */
   border: 1px solid var(--line);
   border-left: 4px solid var(--brand);
-  box-shadow: var(--sh-md);
-}
-  background: var(--surface);
-  color: var(--text);
-  border: 1px solid var(--line);
   box-shadow: var(--sh-md);
 }
 
