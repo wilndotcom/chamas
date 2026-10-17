@@ -55,14 +55,23 @@ function Get-TunnelAddress {
     )
   }
 
+  # A tunnel's own address - never Cloudflare's API domain.
+  #
+  # A failed quick tunnel logs: Post "https://api.trycloudflare.com/tunnel":
+  # lookup api.trycloudflare.com - no such host. That matches any loose pattern
+  # for a trycloudflare address, and reading it as the tunnel's name pointed the
+  # app at Cloudflare's API, which was then reported as reachable, while
+  # confirmations went to an address that cannot receive them. The subdomain of
+  # the API endpoint is the one thing cloudflared itself will never be.
+  $pattern = 'https://(?!api\.)[a-z0-9-]+\.trycloudflare\.com'
+
   $readAddress = {
     foreach ($file in $logs) {
       if (-not (Test-Path $file)) { continue }
-      $match = Select-String -Path $file `
-        -Pattern 'https://[a-z0-9-]+\.trycloudflare\.com' -ErrorAction SilentlyContinue |
+      $match = Select-String -Path $file -Pattern $pattern -ErrorAction SilentlyContinue |
         Select-Object -Last 1
       if ($match) {
-        return [regex]::Match($match.Line, 'https://[a-z0-9-]+\.trycloudflare\.com').Value
+        return [regex]::Match($match.Line, $pattern).Value
       }
     }
     return $null

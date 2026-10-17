@@ -355,10 +355,27 @@ final class MpesaConfig
      */
     private static function isPlaceholder(string $url): bool
     {
-        return preg_match(
+        if (preg_match(
             '/your[-_]?domain|example\.(com|org|net)|localhost|127\.0\.0\.1|\[::1\]/i',
             $url
-        ) === 1;
+        ) === 1) {
+            return true;
+        }
+
+        /*
+         * Cloudflare's API domain is not a tunnel.
+         *
+         * A quick tunnel that fails to start logs a request to
+         * api.trycloudflare.com, and anything matching a trycloudflare address
+         * reads that as though it were the tunnel's name. The result looks like
+         * a perfectly good public https URL, so it gets reported reachable while
+         * confirmations go to an endpoint that cannot receive them.
+         *
+         * Excluded here as well as in the script that discovers addresses,
+         * because this is the check the operator reads, and it must never say
+         * "Safaricom can reach this" about something it cannot.
+         */
+        return preg_match('#^(https?://)?(api|www)\.trycloudflare\.com#i', $url) === 1;
     }
 
 
