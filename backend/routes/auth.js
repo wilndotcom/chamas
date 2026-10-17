@@ -18,7 +18,7 @@ router.post('/member-login', memberLogin);
 router.post('/register', memberRegister);
 router.get('/profile', authenticate, getAdminProfile);
 router.get('/member-profile', authenticateMember, getMemberProfile);
-router.put('/change-password', authenticate, changePassword);
+router.put('/change-password', authenticateEither, changePassword);
 
 /*
  * Sliding session renewal.

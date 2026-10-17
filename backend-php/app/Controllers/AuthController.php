@@ -442,7 +442,7 @@ public static function memberRegister(Request $r): void
         }
     }
 
-    public static function changePassword(Request $r, array $admin): void
+    public static function changePassword(Request $r, array $principal): void
     {
         $body = $r->body();
         $current = $body['current_password'] ?? null;
@@ -464,15 +464,45 @@ public static function memberRegister(Request $r): void
             Response::error('The new passwords do not match.', 400);
         }
 
+        $type = $principal['type'] ?? 'admin';
+
+        if ($type === 'member') {
+            $row = Database::one(
+                'SELECT password_hash FROM members WHERE id = ?',
+                [$principal['id']]
+            );
+
+            if ($row === null || !password_verify($current, $row['password_hash'])) {
+                Response::error('Current password is incorrect.', 401);
+            }
+
+            if (hash_equals($next, $current)) {
+                Response::error('The new password must be different from your current one.', 400);
+            }
+
+            Database::run(
+                'UPDATE members SET password_hash = ? WHERE id = ?',
+                [password_hash($next, PASSWORD_BCRYPT, ['cost' => self::BCRYPT_COST]), $principal['id']]
+            );
+
+            // Recorded so a password change can be explained in an audit later.
+            self::audit($principal['id'], 'password_change', 'member', $principal['id'], ['via' => 'self']);
+
+            Response::json([
+                'success' => true,
+                'message' => 'Password changed successfully.',
+                'must_change_password' => false,
+            ]);
+        }
+
+        // Administrator path: queries the admins table and clears the
+        // first-sign-in flag in the same statement as the hash change.
         $row = Database::one(
             'SELECT password_hash FROM admins WHERE id = ?',
-            [$admin['id']]
+            [$principal['id']]
         );
 
         if ($row === null || !password_verify($current, $row['password_hash'])) {
-            // Same wording as the Node version. The frontend maps known backend
-            // strings onto translation keys, and two words for one failure is how
-            // a Kiswahili user gets an English answer.
             Response::error('Current password is incorrect.', 401);
         }
 
@@ -496,11 +526,11 @@ public static function memberRegister(Request $r): void
              * everywhere, which is indistinguishable from being locked out.
              */
             'UPDATE admins SET password_hash = ?, must_change_password = 0 WHERE id = ?',
-            [password_hash($next, PASSWORD_BCRYPT, ['cost' => self::BCRYPT_COST]), $admin['id']]
+            [password_hash($next, PASSWORD_BCRYPT, ['cost' => self::BCRYPT_COST]), $principal['id']]
         );
 
         // Recorded so a password change can be explained in an audit later.
-        self::audit($admin['id'], 'password_change', 'admin', $admin['id'], ['via' => 'self']);
+        self::audit($principal['id'], 'password_change', 'admin', $principal['id'], ['via' => 'self']);
 
         Response::json([
             'success' => true,

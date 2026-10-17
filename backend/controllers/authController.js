@@ -238,6 +238,38 @@ const changePassword = async (req, res) => {
       return res.status(400).json({ error: 'New password must be at least 8 characters.' });
     }
 
+    const type = req.user.type || 'admin';
+
+    if (type === 'member') {
+      const [members] = await pool.execute(
+        'SELECT password_hash FROM members WHERE id = ?',
+        [req.user.id]
+      );
+
+      const validPassword = await bcrypt.compare(current_password, members[0].password_hash);
+      if (!validPassword) {
+        return res.status(401).json({ error: 'Current password is incorrect.' });
+      }
+
+      if (new_password === current_password) {
+        return res.status(400).json({
+          error: 'The new password must be different from your current one.'
+        });
+      }
+
+      const hashedPassword = await bcrypt.hash(new_password, 12);
+      await pool.execute(
+        'UPDATE members SET password_hash = ? WHERE id = ?',
+        [hashedPassword, req.user.id]
+      );
+
+      return res.json({
+        success: true,
+        message: 'Password changed successfully.',
+        must_change_password: false
+      });
+    }
+
     const [admins] = await pool.execute(
       'SELECT password_hash FROM admins WHERE id = ?',
       [req.user.id]

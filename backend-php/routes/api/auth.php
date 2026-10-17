@@ -41,7 +41,7 @@ return function (Router $router, string $prefix): void {
     });
 
     $router->put($prefix . '/change-password', function (Request $r) {
-        $user = Auth::require($r, 'admin');
+        $user = Auth::requireEither($r);
         AuthController::changePassword($r, $user);
     });
 

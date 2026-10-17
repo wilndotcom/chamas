@@ -134,21 +134,21 @@ const Header = ({ onOpenMenu, portalLabel, drawerOpen = false }) => {
               <span>{t('auth.signedInAs', { role: roleLabel })}</span>
             </button>
 
-            {/* Members choose their own password when they register, so there is
-                nothing for them to change here. */}
-            {user?.type === 'admin' && (
-              <button
-                className="user-dropdown-item"
-                role="menuitem"
-                onClick={() => {
-                  setOpen(false);
-                  setPasswordOpen(true);
-                }}
-              >
-                <KeyRound size={16} />
-                <span>{t('password.menuItem')}</span>
-              </button>
-            )}
+            {/* Every signed-in account can change its own password. Members set
+                one when they register, and they can replace it here at any
+                time. Administrators additionally land on this screen when their
+                first sign-in flag is still set. */}
+            <button
+              className="user-dropdown-item"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                setPasswordOpen(true);
+              }}
+            >
+              <KeyRound size={16} />
+              <span>{t('password.menuItem')}</span>
+            </button>
 
             <button
               className="user-dropdown-item user-dropdown-item--danger"
