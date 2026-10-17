@@ -84,7 +84,7 @@ if (!password) {
       '  No admin password to sign in with.\n' +
       '\n' +
       '  The checks need one, and it is no longer written into the source.\n' +
-      '  Put it in backend/.env:\n' +
+      '  Put it in backend-php/.env:\n' +
       '\n' +
       '      ADMIN_PASSWORD=...\n' +
       '\n' +

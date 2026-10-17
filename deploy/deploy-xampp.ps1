@@ -124,20 +124,15 @@ $env:APP_BASE_PATH = $prefix
 
 # Built into its own folder, NOT frontend/dist.
 #
-# frontend/dist is shared with the Node backend on port 5000, which serves the app
-# from the root and therefore needs its assets at /assets/... Overwriting it with
-# a /the-team build makes that version request /the-team/assets/..., which its own
-# SPA fallback answers with index.html - so the browser gets HTML where it asked
-# for JavaScript and the page goes blank with no error to explain why.
+# dist-xampp is the only build output now that the Node backend is gone. The
+# whole deploy targets the PHP backend under XAMPP.
 $deployDist = Join-Path $frontend 'dist-xampp'
 
 Push-Location $frontend
 try {
     # Vite is invoked directly rather than through "npm run build --". On Windows
     # the extra arguments are not reliably forwarded to the build script, and the
-    # build then silently writes to the default folder - which is the one shared
-    # with the Node backend, and the exact breakage this separation exists to
-    # prevent.
+    # build then silently writes to the default folder.
     & npx vite build --outDir dist-xampp --emptyOutDir
     if ($LASTEXITCODE -ne 0) {
         throw 'The frontend build failed. See the output above.'
@@ -636,7 +631,7 @@ if ($adminPassword) {
     Write-Host '  ADMIN_PASSWORD set to choose one.'
 }
 Write-Host ''
-Write-Host '  The Node version on port 5000 is no longer involved and can be stopped.'
+Write-Host '  The app is served entirely by PHP under XAMPP.'
 Write-Host ''
 
 if ($Open) {

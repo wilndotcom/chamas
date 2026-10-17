@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 /**
- * Compares the PHP port against the behaviour the Node version guarantees.
+ * Asserts the PHP backend's behaviour against the exact text the frontend
+ * branches on.
  *
  * Every case states the expected status and the exact text expected, because a
  * checker that only prints the response tells you nothing when it regresses.

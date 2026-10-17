@@ -12,7 +12,6 @@
     "dev": "node scripts/launch.js",
     "install": "node scripts/launch.js --install",
     "build": "npm --prefix frontend run build",
-    "preview": "npm --prefix frontend run preview",
-    "backend": "npm --prefix backend run dev"
+    "preview": "npm --prefix frontend run preview"
   }
 }

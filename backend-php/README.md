@@ -36,8 +36,8 @@ and the two are impossible to tell apart from the frontend.
 | Rate limiting | Per-IP counters via APCu, falling back to locked files |
 | The rest | Members, contributions, loans, welfare, transparency, notifications, settings, M-Pesa, reports, ledger, roles, permissions, chama, payment gateways |
 
-Every error string is asserted against the Node version's wording, because the
-frontend branches on the text rather than on a code.
+Error strings are asserted against the exact text the frontend branches on,
+rather than being paraphrased.
 
 ## Running it
 
@@ -48,7 +48,7 @@ composer install
 php -S localhost:5050 -t public public/index.php
 ```
 
-Then `node check.mjs` to verify it against the Node version's behaviour.
+Then `node check.mjs` to verify it.
 
 ## Why it is safe to switch
 

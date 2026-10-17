@@ -36,7 +36,7 @@ declare(strict_types=1);
  *   php tests/reset-admin-passwords.php --apply --unblock    let the checks run
  *   php tests/reset-admin-passwords.php --apply --password=...  a specific value
  *
- * The password comes from ADMIN_PASSWORD in backend/.env unless --password says
+ * The password comes from ADMIN_PASSWORD in backend-php/.env unless --password says
  * otherwise. The checks read the same variable, so the two stay in step.
  *
  * --unblock clears the requirement without touching any password. It exists for
@@ -61,7 +61,7 @@ use TheTeam\Env;
  * its configuration in either, and Env::load leaves the first value it finds in
  * place.
  */
-Env::load(dirname(__DIR__, 2) . '/backend');
+Env::load(dirname(__DIR__, 2) . '/backend-php');
 Env::load(dirname(__DIR__, 2));
 
 $options = getopt('', ['apply', 'unblock', 'password::', 'only::']);
@@ -81,7 +81,7 @@ echo str_repeat('-', 68) . "\n";
 if (!$unblock) {
     if ($password === null || $password === '') {
         echo "\nNo password to set.\n\n";
-        echo "Set ADMIN_PASSWORD in backend/.env, or pass --password=... :\n\n";
+        echo "Set ADMIN_PASSWORD in backend-php/.env, or pass --password=... :\n\n";
         echo "  php tests/reset-admin-passwords.php --apply --password=admin1234\n\n";
         exit(1);
     }

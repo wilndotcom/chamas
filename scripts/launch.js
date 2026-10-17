@@ -1,6 +1,6 @@
 /**
- * Starts the backend and frontend together, so nobody has to remember which port
- * hosts the installable build.
+ * Starts the frontend only. The PHP backend is served by Apache/XAMPP
+ * directly and is not started here.
  *
  *   node scripts/launch.js            dev mode, frontend on :3000
  *   node scripts/launch.js --install  install mode, frontend on :4173
@@ -24,11 +24,9 @@ import http from 'node:http';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const frontend = join(root, 'frontend');
-const backend = join(root, 'backend');
 
 const installMode = process.argv.includes('--install');
 
-const BACKEND_PORT = 5000;
 const FRONTEND_PORT = installMode ? 4173 : 3000;
 
 const isWindows = process.platform === 'win32';
@@ -64,8 +62,6 @@ const runNpm = (args, cwd, extra = {}) => {
 
 let shuttingDown = false;
 
-/* Colour only when a terminal is watching. Redirected to a file, escape codes
-   would be written literally as `[2m` noise in front of every line. */
 const useColour = process.stdout.isTTY === true;
 
 const C = {
@@ -84,7 +80,6 @@ const say = (line = '') => process.stdout.write(`${line}\n`);
 const childProcesses = [];
 
 const start = (label, child, colour) => {
-  // Prefix forwarded output so two servers stay readable in one terminal.
   const prefix = `${colour}${label.padEnd(6)}${useColour ? '\u001b[0m' : ''} | `;
   const forward = (stream) => (chunk) => {
     const text = chunk.toString().replace(/\r?\n$/, '');
@@ -98,8 +93,6 @@ const start = (label, child, colour) => {
     shutdown(1);
   });
 
-  // A child exiting on its own means what was asked for is not happening, so the
-  // whole launcher stops rather than leaving a half-running system behind.
   child.on('exit', (code) => {
     if (shuttingDown) return;
     say(`${paint(C.red, label)} stopped unexpectedly (code ${code}).`);
@@ -121,8 +114,6 @@ function shutdown(code = 0) {
     if (child.exitCode !== null || child.killed) continue;
     try {
       if (isWindows && child.pid) {
-        // /T takes the whole tree: nodemon and Vite each spawn a child, and
-        // killing only the parent leaves an orphan holding the port.
         spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], {
           stdio: 'ignore'
         });
@@ -137,24 +128,10 @@ function shutdown(code = 0) {
   setTimeout(() => process.exit(code), 700);
 }
 
-// Ctrl+C has to reach the children, or the prompt returns while two servers keep
-// running invisibly and the ports stay held.
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, () => shutdown(0));
 }
 
-/**
- * Resolves once the port answers, or rejects once it has waited long enough.
- *
- * Polling rather than scanning child output: these servers print a lot, and
- * matching log lines would break the moment a message is reworded.
- *
- * Both loopback addresses are tried on every attempt. Vite preview binds to
- * whatever `localhost` resolves to, which on Windows is IPv6 `::1`, while the
- * backend binds to every interface. Polling only 127.0.0.1 therefore hangs
- * forever on the frontend even though the port is plainly listening - the port
- * check and the socket check disagree about what "up" means.
- */
 const loopbackHosts = ['127.0.0.1', '[::1]'];
 
 const probeOnce = (port, host) =>
@@ -217,67 +194,17 @@ const main = async () => {
   say(installMode ? paint(C.cyan, '  Install mode') : paint(C.cyan, '  Development mode'));
   say('');
 
-  for (const [name, dir] of [
-    ['backend', backend],
-    ['frontend', frontend]
-  ]) {
-    if (!existsSync(join(dir, 'node_modules'))) {
-      throw new Error(`${name} dependencies are missing. Run: cd ${name} && npm install`);
-    }
+  if (!existsSync(join(frontend, 'node_modules'))) {
+    throw new Error('Frontend dependencies are missing. Run: cd frontend && npm install');
   }
 
-  /*
- * The backend always runs under nodemon, in both modes.
- *
- * Only the frontend differs between dev and install mode, because only the
- * frontend has the service-worker problem that decides which port serves what.
- * The backend has no such constraint, and running it as a plain `node server.js`
- * meant every controller edit needed a manual restart - during development, at
- * least, that reload is the whole point of having nodemon.
- */
-/*
- * Install mode: build first, then let the backend serve it.
- *
- * The backend serves the built frontend itself, so install mode needs no second
- * server and no port in any URL. Development keeps Vite, because it needs
- * hot reloading and has no business behind a build step.
- *
- * Building before starting the backend matters: the backend decides whether to
- * serve the app from disk at startup, so a build that finished after it booted
- * would be ignored until the next restart.
- */
-if (installMode) {
-  say('');
-  say(paint(C.yellow, '  build'));
-  say(paint(C.dim, '  building the frontend, this takes a moment'));
-  await runNpmToCompletion(['run', 'build'], frontend);
-}
+  if (installMode) {
+    say('');
+    say(paint(C.yellow, '  build'));
+    say(paint(C.dim, '  building the frontend, this takes a moment'));
+    await runNpmToCompletion(['run', 'build'], frontend);
+  }
 
-say(paint(C.dim, `  starting the backend on :${BACKEND_PORT}`));
-start('api', runNpm(['run', installMode ? 'start' : 'dev'], backend), C.green);
-await waitForPort(BACKEND_PORT, 'The backend');
-
-if (installMode) {
-  // One server, one port, and the port is the only part of the URL that is not
-  // a real path. See DEPLOYMENT.md for putting it behind a domain on :80.
-  const url = `http://localhost:${BACKEND_PORT}`;
-
-  say('');
-  say(`  ${paint(C.green, 'Ready.')}`);
-  say(`  ${paint(C.bold, url + '/admin')}   ${paint(C.dim, 'administrators')}`);
-  say(`  ${paint(C.bold, url + '/member')}  ${paint(C.dim, 'members')}`);
-  say('');
-  say(paint(C.dim, '  The backend serves the app as well as the API, so there is'));
-  say(paint(C.dim, '  no second server and no port in any link you share.'));
-  say('');
-  say(paint(C.yellow, '  To put it on your desktop'));
-  say(`    1. Open ${url}/admin`);
-  say('    2. Click "Install App" at the bottom of the left sidebar,');
-  say('       or use the install icon in the address bar.');
-  say('');
-  say(paint(C.dim, '    To lose the port entirely, put it behind Apache or nginx on'));
-  say(paint(C.dim, '    :80. A ready-made config is in DEPLOYMENT.md.'));
-} else {
   const script = 'dev';
   say('');
   say(paint(C.dim, `  starting the frontend on :${FRONTEND_PORT}`));
@@ -288,11 +215,22 @@ if (installMode) {
 
   say('');
   say(`  ${paint(C.green, 'Ready.')}`);
-  say(`  ${paint(C.bold, url + '/admin')}`);
+  say(`  ${paint(C.bold, url + '/admin')}   ${paint(C.dim, 'administrators')}`);
+  say(`  ${paint(C.bold, url + '/member')}  ${paint(C.dim, 'members')}`);
   say('');
-  say(paint(C.dim, '    Installing from this build will not work. Run'));
-  say(`    ${paint(C.bold, 'npm run install')} ${paint(C.dim, 'for that.')}`);
-}
+  say(paint(C.dim, '  The PHP backend is served by Apache/XAMPP directly -'));
+  say(paint(C.dim, '  open http://localhost:8080/the-team for the installed app.'));
+  say('');
+  say(paint(C.yellow, '  To put it on your desktop'));
+  say(`    1. Open ${url}/admin`);
+  say('    2. Click "Install App" at the bottom of the left sidebar,');
+  say('       or use the install icon in the address bar.');
+  say('');
+  say(paint(C.dim, '    For the XAMPP install, open:'));
+  say(paint(C.dim, '      http://localhost:8080/the-team'));
+  say('');
+  say(paint(C.dim, '    Sign in as admin / admin1234. All four administrator accounts'));
+  say(paint(C.dim, '    share this starting password until each chooses their own.'));
   say('');
 };
 
