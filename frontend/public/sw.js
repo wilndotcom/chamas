@@ -14,7 +14,17 @@
  * when the network genuinely cannot be reached.
  */
 
-const VERSION = 'v1';
+/*
+ * Bumped from v1 when the API check was corrected below.
+ *
+ * Until then a sub-path install did not recognise its own API traffic, so
+ * responses carrying contribution totals and loan balances were cached as if
+ * they were static assets. The corrected worker never reads those entries -
+ * API requests now return early - but a reader cannot see that from the cache,
+ * and balances do not belong in browser storage. A new name means the activate
+ * handler below deletes the old caches instead of leaving them in place.
+ */
+const VERSION = 'v2';
 const SHELL_CACHE = `chama-shell-${VERSION}`;
 const ASSET_CACHE = `chama-assets-${VERSION}`;
 
