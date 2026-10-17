@@ -381,11 +381,14 @@ Write-Step 'Applying database migrations ...'
 # database was a version behind.
 #
 # A deploy is the one moment the code and the schema are meant to be in step, so
-# it is the place to make them so. Every migration is written to be re-runnable -
+# it is the place to make them so. Most migrations are written to be re-runnable -
 # CREATE TABLE IF NOT EXISTS, ADD COLUMN IF NOT EXISTS, INSERT IGNORE - which is
 # what makes applying the whole directory on every deploy safe rather than
-# something to be clever about. They run in filename order, which is their order
-# of authorship.
+# something to be clever about. Two are not: 003 and 005 add a column with a plain
+# ADD COLUMN, which fails the second time. That failure is expected here and
+# classified below rather than hidden, because the alternative - tracking which
+# files have run - is a worse thing to get wrong. They run in filename order,
+# which is their order of authorship.
 $mysqlExe = 'C:\xampp\mysql\bin\mysql.exe'
 $migrations = Join-Path $project 'database\migrations'
 
@@ -422,21 +425,29 @@ if ((Test-Path $mysqlExe) -and (Test-Path $migrations)) {
         # script runs with ErrorActionPreference = Stop, where a native command
         # that writes to stderr aborts the deploy. A migration that fails is worth
         # reporting, not worth stopping a deploy over half way through.
-        $command = "$mysqlArgs $dbName < `"$($file.FullName)`" 2>&1"
+        #
+        # --force keeps the client going after a statement that failed because it
+        # had already been applied. Without it the client stops there and every
+        # later statement in that file is skipped, silently, on a database that
+        # then looks up to date - which is how a table can be missing a column on
+        # a live install for months while every deploy reports success. The errors
+        # are still printed, and still classified below.
+        $command = "$mysqlArgs --force $dbName < `"$($file.FullName)`" 2>&1"
         $result = (& cmd /c $command | Out-String).Trim()
 
-        if ($LASTEXITCODE -eq 0) {
-            $applied++
-            continue
-        }
-
-        $codes = [regex]::Matches($result, 'ERROR (\d+)') | ForEach-Object { $_.Groups[1].Value }
+        # The error codes decide, not the exit status: with --force the status no
+        # longer tells the whole story.
+        $codes = @([regex]::Matches($result, 'ERROR (\d+)') | ForEach-Object { $_.Groups[1].Value })
         $unexpected = @($codes | Where-Object { $expectedCodes -notcontains $_ })
 
-        if ($codes.Count -gt 0 -and $unexpected.Count -eq 0) {
-            $alreadyApplied++
-        } else {
+        if ($unexpected.Count -gt 0) {
             $migrationErrors += "$($file.Name): " + ($result -replace '\s+', ' ')
+        } elseif ($codes.Count -gt 0) {
+            $alreadyApplied++
+        } elseif ($LASTEXITCODE -eq 0) {
+            $applied++
+        } else {
+            $migrationErrors += "$($file.Name): exited with $LASTEXITCODE " + ($result -replace '\s+', ' ')
         }
     }
 

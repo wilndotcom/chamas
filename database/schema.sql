@@ -233,6 +233,11 @@ CREATE TABLE audit_logs (
     admin_id INT,
     member_id INT,
     action VARCHAR(255) NOT NULL,
+    -- What the action was about: entity_type names the kind of record and
+    -- entity_id its id, so "changed a password" can say whose. Both are nullable
+    -- because an entry that names no target is still a valid entry.
+    entity_type VARCHAR(50),
+    entity_id INT,
     details JSON,
     ip_address VARCHAR(45),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
