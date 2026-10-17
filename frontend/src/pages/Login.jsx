@@ -96,7 +96,7 @@ const Login = () => {
     return (
       <div className="login-container">
         <div className="login-box">
-          <div className="login-logo" style={{ background: 'linear-gradient(135deg,#16a34a,#0d9488)' }}>
+          <div className="login-logo">
             <CheckCircle size={30} />
           </div>
           <h1>{t('login.received')}</h1>

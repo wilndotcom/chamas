@@ -7,7 +7,7 @@ const ThemeContext = createContext(null);
 export const useTheme = () => useContext(ThemeContext);
 
 export const THEMES = [
-  { id: 'emerald', name: 'Emerald', brand: '#16a34a', accent: '#0d9488', sidebar: '#0f3d22' },
+  { id: 'emerald', name: 'Emerald', brand: '#0f9d6c', accent: '#0891b2', sidebar: '#0a2e1f' },
   { id: 'ocean', name: 'Ocean', brand: '#2563eb', accent: '#0891b2', sidebar: '#12233f' },
   { id: 'sunset', name: 'Sunset', brand: '#ea580c', accent: '#db2777', sidebar: '#3f1d0f' },
   { id: 'forest', name: 'Forest', brand: '#0d9488', accent: '#4d7c0f', sidebar: '#0c2f2b' },

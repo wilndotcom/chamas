@@ -5,14 +5,14 @@
 
 :root {
   /* Brand — overridden per skin via [data-theme] */
-  --brand: #16a34a;
-  --brand-dark: #15803d;
-  --brand-deep: #14532d;
-  --brand-light: #dcfce7;
+  --brand: #0f9d6c;
+  --brand-dark: #0b7a54;
+  --brand-deep: #075c3f;
+  --brand-light: #e6f7f0;
 
   /* Secondary accent used by gradients, charts and highlights */
-  --accent: #0d9488;
-  --accent-2: #0891b2;
+  --accent: #0891b2;
+  --accent-2: #0e7490;
 
   /*
    * Named status colours.
@@ -27,33 +27,33 @@
    * Defined here so skins can still override them, and so a future reference
    * resolves instead of failing silently.
    */
-  --red: #dc2626;
-  --blue: #2563eb;
+  --red: #e11d48;
+  --blue: #3b82f6;
   --cyan: #06b6d4;
-  --teal: #0d9488;
+  --teal: #14b8a6;
   --amber: #f59e0b;
-  --orange: #ea580c;
-  --indigo: #4f46e5;
-  --green: #16a34a;
+  --orange: #f97316;
+  --indigo: #6366f1;
+  --green: #22c55e;
 
   /* Sidebar gradient */
-  --sidebar-a: #0f3d22;
-  --sidebar-b: #0a2c18;
+  --sidebar-a: #0a2e1f;
+  --sidebar-b: #061f15;
 
-  /* Neutrals */
-  --bg: #f1f5f9;
+  /* Neutrals — slightly warmer, softer than pure slate */
+  --bg: #f6f8f7;
   --surface: #ffffff;
-  --surface-2: #f8fafc;
-  --text: #0f172a;
-  --text-soft: #64748b;
-  --text-faint: #94a3b8;
-  --line: #e2e8f0;
+  --surface-2: #f0f4f2;
+  --text: #1a2e25;
+  --text-soft: #5a6e64;
+  --text-faint: #8ba398;
+  --line: #dce5e0;
 
   /* Shape */
-  --r-sm: 8px;
-  --r-md: 12px;
-  --r-lg: 18px;
-  --r-xl: 24px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-xl: 28px;
   --r-full: 999px;
 
   /* ---------------------------------------------------------------
@@ -98,14 +98,14 @@
    ============================================ */
 
 [data-theme='emerald'] {
-  --brand: #16a34a;
-  --brand-dark: #15803d;
-  --brand-deep: #14532d;
-  --brand-light: #dcfce7;
-  --accent: #0d9488;
-  --accent-2: #0891b2;
-  --sidebar-a: #0f3d22;
-  --sidebar-b: #0a2c18;
+  --brand: #0f9d6c;
+  --brand-dark: #0b7a54;
+  --brand-deep: #075c3f;
+  --brand-light: #e6f7f0;
+  --accent: #0891b2;
+  --accent-2: #0e7490;
+  --sidebar-a: #0a2e1f;
+  --sidebar-b: #061f15;
 }
 
 [data-theme='ocean'] {
@@ -174,7 +174,7 @@
    * under the contrast floor for text; these lift it without changing the hue, so
    * danger still reads as danger.
    */
-  --red: #f87171;
+  --red: #fb7185;
   --blue: #60a5fa;
   --cyan: #22d3ee;
   --teal: #2dd4bf;
@@ -183,13 +183,13 @@
   --indigo: #818cf8;
   --green: #4ade80;
 
-  --bg: #0b1220;
-  --surface: #131c2e;
-  --surface-2: #1a2437;
-  --text: #e8eef7;
-  --text-soft: #9fb0c7;
-  --text-faint: #6b7d95;
-  --line: #243148;
+  --bg: #0d1512;
+  --surface: #152019;
+  --surface-2: #1c2a22;
+  --text: #e8f0ec;
+  --text-soft: #9db5a9;
+  --text-faint: #6b8579;
+  --line: #24352c;
   --sh-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --sh-md: 0 4px 16px rgba(0, 0, 0, 0.45);
   --sh-lg: 0 14px 36px -10px rgba(0, 0, 0, 0.7);
@@ -305,9 +305,16 @@ textarea.mono {
   display: flex;
   flex-direction: column;
   background:
-    radial-gradient(1000px 520px at 12% 8%, rgba(34, 197, 94, 0.35), transparent 60%),
-    radial-gradient(900px 500px at 88% 92%, rgba(37, 99, 235, 0.32), transparent 60%),
-    linear-gradient(140deg, #052e16 0%, #0b3d20 45%, #0f2f4a 100%);
+    radial-gradient(1200px 600px at 8% 4%, color-mix(in srgb, var(--brand) 22%, transparent), transparent 65%),
+    radial-gradient(1000px 560px at 95% 96%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 65%),
+    linear-gradient(160deg, #f0fdf6 0%, #f6f8f7 40%, #eef4f1 100%);
+}
+
+[data-mode='dark'] .login-page {
+  background:
+    radial-gradient(1200px 600px at 8% 4%, color-mix(in srgb, var(--brand) 28%, transparent), transparent 65%),
+    radial-gradient(1000px 560px at 95% 96%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 65%),
+    linear-gradient(160deg, #060d0a 0%, #0d1512 50%, #111c17 100%);
 }
 
 .login-container {
@@ -315,53 +322,56 @@ textarea.mono {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: 24px;
 }
 
 .login-box {
   background: var(--surface);
-  padding: 38px 34px;
+  padding: 42px 38px;
   border-radius: var(--r-xl);
-  box-shadow: var(--sh-lg);
+  box-shadow: 0 24px 60px -16px rgba(15, 40, 28, 0.18), 0 4px 12px -4px rgba(15, 40, 28, 0.06);
   width: 100%;
-  max-width: 424px;
-  animation: popIn 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  max-width: 440px;
+  animation: popIn 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.1);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+[data-mode='dark'] .login-box {
+  border-color: var(--line);
+  box-shadow: 0 24px 60px -16px rgba(0, 0, 0, 0.6), 0 4px 12px -4px rgba(0, 0, 0, 0.3);
 }
 
 .login-logo {
-  width: 62px;
-  height: 62px;
-  margin: 0 auto 16px;
-  border-radius: 18px;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 18px;
+  border-radius: 20px;
   display: grid;
   place-items: center;
   background: linear-gradient(135deg, var(--brand), var(--accent-2));
   color: #fff;
-  box-shadow: 0 10px 24px -8px color-mix(in srgb, var(--brand) 70%, transparent);
+  box-shadow: 0 12px 28px -8px color-mix(in srgb, var(--brand) 60%, transparent);
 }
 
 .login-box h1 {
   text-align: center;
-  font-size: 27px;
+  font-size: 28px;
   font-weight: 800;
-  letter-spacing: -0.5px;
-  background: linear-gradient(90deg, var(--brand-dark), var(--cyan));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  letter-spacing: -0.6px;
+  color: var(--text);
 }
 
 .login-box .subtitle {
   text-align: center;
   color: var(--text-soft);
-  margin: 4px 0 24px;
-  font-size: 14px;
+  margin: 6px 0 26px;
+  font-size: 14.5px;
 }
 
 .login-tabs {
   display: flex;
   gap: 8px;
-  margin-bottom: 24px;
+  margin-bottom: 26px;
   padding: 5px;
   background: var(--bg);
   border-radius: var(--r-full);
@@ -369,7 +379,7 @@ textarea.mono {
 
 .login-tab {
   flex: 1;
-  padding: 10px 12px;
+  padding: 11px 12px;
   text-align: center;
   font-weight: 600;
   font-size: 14px;
@@ -386,7 +396,7 @@ textarea.mono {
 .login-tab.active {
   background: var(--surface);
   color: var(--brand-dark);
-  box-shadow: var(--sh-sm);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 /* ============================================
@@ -417,9 +427,10 @@ textarea.mono {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 0 20px;
-  background: color-mix(in srgb, var(--surface) 88%, transparent);
-  backdrop-filter: blur(12px);
+  padding: 0 22px;
+  background: color-mix(in srgb, var(--surface) 85%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--line);
   transition: left 0.24s cubic-bezier(0.2, 0.8, 0.3, 1);
 }
@@ -662,9 +673,9 @@ textarea.mono {
   /* Right padding reserves the 30px collapse button that sits at right:10px.
      Without it a long chama name ran underneath the button. The 18px top
      padding moved here from .sidebar when it became a flex column. */
-  padding: 18px 48px 16px 14px;
-  margin-bottom: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 20px 48px 18px 16px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   flex-shrink: 0;
 }
 
@@ -985,7 +996,7 @@ textarea.mono {
   position: relative;
   overflow: hidden;
   border-radius: var(--r-lg);
-  padding: 20px 22px;
+  padding: 22px 24px;
   color: #fff;
   /* Both stops fall back to --brand rather than to a second named colour. A var()
    with no definition invalidates the entire declaration, so a missing second
@@ -1185,10 +1196,10 @@ textarea.mono {
 .card {
   background: var(--surface);
   border-radius: var(--r-lg);
-  padding: 22px;
-  box-shadow: var(--sh-md);
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(15, 40, 28, 0.04), 0 4px 16px -4px rgba(15, 40, 28, 0.06);
   margin-bottom: 20px;
-  border: 1px solid rgba(226, 232, 240, 0.7);
+  border: 1px solid var(--line);
 }
 
 .card-header {
@@ -1378,7 +1389,7 @@ tbody tr {
 }
 
 tbody tr:hover {
-  background: #f8fafc;
+  background: var(--surface-2);
 }
 
 tbody tr:last-child td {
@@ -1412,10 +1423,10 @@ tbody tr:last-child td {
   white-space: nowrap;
 }
 
-.badge-success { background: #dcfce7; color: #15803d; }
-.badge-warning { background: #fef3c7; color: #b45309; }
-.badge-danger  { background: #fee2e2; color: #b91c1c; }
-.badge-info    { background: #dbeafe; color: #1d4ed8; }
+.badge-success { background: #dcfce7; color: #166534; }
+.badge-warning { background: #fef3c7; color: #92400e; }
+.badge-danger  { background: #ffe4e6; color: #9f1239; }
+.badge-info    { background: #dbeafe; color: #1e40af; }
 .badge-neutral { background: var(--line); color: var(--text-soft); }
 
 /* Multi-word labels must not have every word capitalised */
@@ -1430,7 +1441,7 @@ tbody tr:last-child td {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 11px 20px;
+  padding: 12px 22px;
   border-radius: var(--r-md);
   font-size: 14.5px;
   font-weight: 600;
@@ -1446,26 +1457,27 @@ tbody tr:last-child td {
 .btn-primary {
   background: linear-gradient(135deg, var(--brand), var(--accent));
   color: #fff;
-  box-shadow: 0 8px 18px -8px color-mix(in srgb, var(--brand) 75%, transparent);
+  box-shadow: 0 8px 20px -8px color-mix(in srgb, var(--brand) 60%, transparent);
 }
 
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 12px 22px -8px color-mix(in srgb, var(--brand) 85%, transparent);
+  box-shadow: 0 12px 26px -8px color-mix(in srgb, var(--brand) 70%, transparent);
 }
 
 .btn-secondary {
-  background: var(--bg);
+  background: var(--surface-2);
   color: var(--text);
   border: 1px solid var(--line);
 }
 
 .btn-secondary:hover:not(:disabled) {
   background: var(--line);
+  border-color: var(--text-faint);
 }
 
 .btn-danger {
-  background: linear-gradient(135deg, #ef4444, #dc2626);
+  background: linear-gradient(135deg, #f43f5e, #e11d48);
   color: #fff;
 }
 
@@ -1476,7 +1488,7 @@ tbody tr:last-child td {
 .btn-block { width: 100%; }
 
 .btn-sm {
-  padding: 7px 13px;
+  padding: 8px 14px;
   font-size: 13px;
   border-radius: var(--r-sm);
 }
@@ -1508,7 +1520,7 @@ tbody tr:last-child td {
 .form-group select,
 .form-group textarea {
   width: 100%;
-  padding: 11px 14px;
+  padding: 12px 15px;
   border: 1.5px solid var(--line);
   border-radius: var(--r-md);
   font-size: 14.5px;
@@ -1521,7 +1533,7 @@ tbody tr:last-child td {
 .form-group textarea:focus {
   outline: none;
   border-color: var(--brand);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 18%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 15%, transparent);
 }
 
 .form-row {

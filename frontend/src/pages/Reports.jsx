@@ -48,7 +48,7 @@ const Reports = () => {
     { name: t('welfare.title'), value: summary?.total_welfare || 0 }
   ];
 
-  const COLORS = ['#1a5f2a', '#1565c0', '#e65100'];
+  const COLORS = ['#0f9d6c', '#2563eb', '#f97316'];
 
   return (
     <div>
