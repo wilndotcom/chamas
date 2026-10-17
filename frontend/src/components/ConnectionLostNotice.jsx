@@ -3,6 +3,7 @@ import { CloudOff, RefreshCw } from 'lucide-react';
 import { useI18n } from '../i18n/I18nContext';
 import { useFormat } from '../context/FormatContext';
 import Footer from './Footer';
+import { withBase } from '../baseUrl';
 
 /**
  * Shown when the stored session is still valid but the server cannot be reached.
@@ -28,7 +29,7 @@ const ConnectionLostNotice = () => {
     // Poll until the server answers again. A full reload is the honest test: it
     // re-runs the whole startup path, including the profile check that failed.
     const retry = setInterval(() => {
-      fetch('/api/health')
+      fetch(withBase('/api/health'))
         .then((res) => {
           if (res.ok) window.location.reload();
         })

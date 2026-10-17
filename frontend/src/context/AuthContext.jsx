@@ -120,7 +120,7 @@ export const AuthProvider = ({ children }) => {
       const { data } = await axios.post(
         '/api/auth/refresh',
         {},
-        { headers: { Authorization: Bearer  } }
+        { headers: { Authorization: `Bearer ${current}` } }
       );
       if (!data?.token) return;
 
@@ -140,7 +140,7 @@ export const AuthProvider = ({ children }) => {
       if (localStorage.getItem('token') !== current) return;
 
       localStorage.setItem('token', data.token);
-      axios.defaults.headers.common['Authorization'] = Bearer ;
+      axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
       setToken(data.token);
     } catch {
       // Nothing to do. The current token remains valid until it expires.

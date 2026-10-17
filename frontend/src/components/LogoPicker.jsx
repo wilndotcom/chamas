@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { Upload, Trash2, ImageOff } from 'lucide-react';
 import { useFormat } from '../context/FormatContext';
 import { useI18n } from '../i18n/I18nContext';
+import { withBase } from '../baseUrl';
 
 /**
  * Logo picker for Settings.
@@ -98,7 +99,7 @@ const LogoPicker = ({ reload }) => {
       <div className="logo-picker-preview">
         {hasLogo ? (
           <img
-            src={`/api/chama/logo?v=${stamp}`}
+            src={withBase(`/api/chama/logo?v=${stamp}`)}
             alt={t('logo.alt', { name: chamaName })}
             onError={(e) => {
               e.currentTarget.style.display = 'none';

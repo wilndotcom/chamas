@@ -45,6 +45,16 @@ return function (Router $router, string $prefix): void {
         AuthController::changePassword($r, $user);
     });
 
+    /*
+     * Unauthenticated, matching the Node route. This endpoint's whole job is to
+     * replace a token that is about to expire, so requiring a valid one first
+     * would be circular. The controller reads the header and verifies it itself,
+     * which is also how it can tell an expired session from a missing one.
+     */
+    $router->post($prefix . '/refresh', function (Request $r) {
+        AuthController::refreshToken($r);
+    });
+
     $router->get($prefix . '/impersonation-targets', function (Request $r) {
         $user = Auth::requireSuperAdmin($r);
         AuthController::impersonationTargets($r, $user);

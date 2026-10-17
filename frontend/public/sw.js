@@ -18,9 +18,31 @@ const VERSION = 'v1';
 const SHELL_CACHE = `chama-shell-${VERSION}`;
 const ASSET_CACHE = `chama-assets-${VERSION}`;
 
+/*
+ * The folder this worker was registered to serve.
+ *
+ * A worker can only control paths at or below its own location, and pwa.js
+ * registers this one with the deployment prefix as its scope - so the scope is
+ * exactly that prefix: '/' at the root of a domain, '/the-team/' when the app
+ * lives in a folder.
+ *
+ * Reading it here rather than hardcoding '/' matters more than it looks. The API
+ * check below looks for a path beginning '/api/', which never matches
+ * '/the-team/api/...', so a sub-path install was classifying every contribution
+ * total and loan balance as a cacheable static asset - the one thing this file
+ * exists to prevent.
+ */
+const BASE = new URL(self.registration.scope).pathname;
+
 // The shell. Hashed build assets are picked up at runtime instead of being
 // listed here, because their filenames change on every build.
-const PRECACHE = ['/', '/index.html', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png'];
+const PRECACHE = [
+  BASE,
+  BASE + 'index.html',
+  BASE + 'manifest.webmanifest',
+  BASE + 'icon-192.png',
+  BASE + 'icon-512.png'
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -55,9 +77,9 @@ self.addEventListener('message', (event) => {
 });
 
 const isApiRequest = (url) =>
-  url.pathname.startsWith('/api/') ||
-  url.pathname === '/api' ||
-  url.pathname.startsWith('/socket.io');
+  url.pathname.startsWith(BASE + 'api/') ||
+  url.pathname === BASE + 'api' ||
+  url.pathname.startsWith(BASE + 'socket.io');
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
@@ -88,11 +110,11 @@ self.addEventListener('fetch', (event) => {
       fetch(request)
         .then((response) => {
           const copy = response.clone();
-          caches.open(SHELL_CACHE).then((cache) => cache.put('/index.html', copy));
+          caches.open(SHELL_CACHE).then((cache) => cache.put(BASE + 'index.html', copy));
           return response;
         })
         .catch(() =>
-          caches.match('/index.html').then((cached) => cached || Response.error())
+          caches.match(BASE + 'index.html').then((cached) => cached || Response.error())
         )
     );
     return;

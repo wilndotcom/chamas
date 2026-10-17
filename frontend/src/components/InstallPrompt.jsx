@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Download, X, Smartphone, Share, PlusSquare } from 'lucide-react';
 import { useI18n } from '../i18n/I18nContext';
 import { onInstallRequested } from '../pwa';
+import { withBase } from '../baseUrl';
 
 /**
  * Install prompt.
@@ -227,7 +228,7 @@ const InstallPrompt = () => {
           </button>
 
           <div className="install-icon" aria-hidden="true">
-            <img src="/icon-192.png" alt="" width="56" height="56" />
+            <img src={withBase('/icon-192.png')} alt="" width="56" height="56" />
           </div>
 
           <h2 className="install-title">{t('install.title')}</h2>

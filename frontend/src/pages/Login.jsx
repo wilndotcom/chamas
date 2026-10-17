@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useFormat } from '../context/FormatContext';
 import { useI18n } from '../i18n/I18nContext';
 import ChamaLogo from '../components/ChamaLogo';
+import { withBase } from '../baseUrl';
 import toast from 'react-hot-toast';
 import { Users, User, ShieldCheck, UserPlus, ArrowLeft, CheckCircle } from 'lucide-react';
 
@@ -60,7 +61,15 @@ const Login = () => {
     }
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/register', {
+      /*
+       * withBase rather than a bare '/api/...'.
+       *
+       * This is the one request in the app that does not go through axios, and
+       * that is exactly why registration was the screen that broke in a sub-path
+       * install: '/api/auth/register' resolves against the domain root, not the
+       * folder the app is served from.
+       */
+      const res = await fetch(withBase('/api/auth/register'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form)

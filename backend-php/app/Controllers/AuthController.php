@@ -342,6 +342,92 @@ public static function memberRegister(Request $r): void
         ]);
     }
 
+    /**
+     * Exchanges a still-valid token for a fresh one.
+     *
+     * The frontend calls this in the background while somebody is working, so
+     * that a session does not expire in the middle of a task. The route did not
+     * exist in the port, so the request 404'd - and the caller swallows a failed
+     * renewal on purpose, because a background request nobody asked for should
+     * not end a session. So the symptom was never an error on screen: it was
+     * sessions quietly running out on a long afternoon, which is the exact thing
+     * the feature exists to prevent.
+     *
+     * Ported from refreshToken in backend/controllers/authController.js.
+     *
+     * The token is verified again rather than trusted, because the account it
+     * names may have been deactivated since it was issued. A token that keeps
+     * working after somebody has been removed is worse than one that expires.
+     *
+     * Deliberately unauthenticated, matching the Node route. The method reads
+     * the header itself: running the usual guard first would answer a missing
+     * token with "Access denied" rather than this endpoint's own words, and the
+     * frontend distinguishes the two.
+     */
+    public static function refreshToken(Request $r): void
+    {
+        try {
+            $token = $r->bearerToken();
+
+            if ($token === null || $token === '') {
+                Response::error('No token provided.', 401);
+            }
+
+            $claims = Auth::decode($token);
+
+            if ($claims === null) {
+                Response::error('Session expired. Please sign in again.', 401);
+            }
+
+            $isAdmin = ($claims['type'] ?? null) === 'admin';
+
+            /*
+             * The claims are carried across rather than rebuilt from the
+             * database.
+             *
+             * Rebuilding looks tidier and would be wrong: impersonated_by is a
+             * claim, not a column, so a renewal during an impersonated session
+             * would drop it and silently return the super admin to their own
+             * account - ending the session they were in the middle of.
+             */
+            $newToken = Auth::issue([
+                'id' => $claims['id'] ?? null,
+                'email' => $claims['email'] ?? null,
+                'phone' => $claims['phone'] ?? null,
+                'role' => $claims['role'] ?? null,
+                'type' => $claims['type'] ?? null,
+                'impersonated_by' => $claims['impersonated_by'] ?? null,
+            ]);
+
+            if ($isAdmin) {
+                $admin = Database::one(
+                    'SELECT id, member_id, full_name, email, phone, is_active FROM admins WHERE id = ?',
+                    [$claims['id'] ?? null]
+                );
+
+                if ($admin === null || (int) $admin['is_active'] !== 1) {
+                    Response::error('Account is deactivated.', 403);
+                }
+
+                Response::json(['token' => $newToken, 'type' => 'admin']);
+            }
+
+            $member = Database::one(
+                'SELECT id, full_name, email, phone, status FROM members WHERE id = ?',
+                [$claims['id'] ?? null]
+            );
+
+            if ($member === null || $member['status'] !== 'active') {
+                Response::error('Account is not active.', 403);
+            }
+
+            Response::json(['token' => $newToken, 'type' => 'member']);
+        } catch (\Throwable $e) {
+            Log::warn('refreshToken: ' . $e->getMessage());
+            Response::error('Could not refresh the session.', 500);
+        }
+    }
+
     public static function changePassword(Request $r, array $admin): void
     {
         $body = $r->body();

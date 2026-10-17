@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useFormat } from '../context/FormatContext';
+import { withBase } from '../baseUrl';
 
 /**
  * The chama logo, with the built-in mark as a fallback.
@@ -44,7 +45,7 @@ const ChamaLogo = ({ size = 38, className = '', rounded = true }) => {
     return (
       <span className={`chama-logo ${className}`} style={box}>
         <img
-          src={`/api/chama/logo?v=${stamp}`}
+          src={withBase(`/api/chama/logo?v=${stamp}`)}
           alt=""
           onError={() => setFailed(true)}
           style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
