@@ -225,7 +225,7 @@
      inline; the default keeps the edge consistent everywhere else. */
   border: 1px solid var(--line);
   border-left: 4px solid var(--brand);
-  box-shadow: var(--sh-md);
+  box-shadow: var(--sh-sm);
 }
 
 [data-mode='dark'] tbody tr:hover {
@@ -1047,9 +1047,9 @@ textarea.mono {
 }
 
 .stat-label {
-  font-size: 12.5px;
+  font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.7px;
   font-weight: 700;
   opacity: 0.9;
   margin-bottom: 6px;
@@ -1090,7 +1090,7 @@ textarea.mono {
      inline; the default keeps the edge consistent everywhere else. */
   border: 1px solid var(--line);
   border-left: 4px solid var(--brand);
-  box-shadow: var(--sh-md);
+  box-shadow: var(--sh-sm);
 }
 
 /*
@@ -1140,7 +1140,7 @@ textarea.mono {
   color: var(--text);
   border: 1px solid var(--line);
   border-left: 4px solid var(--c1);
-  box-shadow: var(--sh-md);
+  box-shadow: 0 4px 16px -4px rgba(0,0,0,0.04);
   padding: 24px 26px;
 }
 
@@ -1358,6 +1358,7 @@ table {
   width: 100%;
   border-collapse: collapse;
   min-width: 520px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
 }
 
 th,
@@ -1370,14 +1371,8 @@ td {
 th {
   background: var(--bg);
   font-weight: 700;
-  font-size: 11.5px;
-  /*
-   * --text rather than --text-soft. These headers are 11.5px uppercase, which is
-   * small text and so needs 4.5:1, not the 3:1 that large text is allowed.
-   * --text-soft on --bg measured 4.34:1 - a marginal miss on every table in the
-   * app, and uppercase small print is exactly where marginal legibility matters.
-   */
-  color: var(--text);
+  font-size: 11px;
+  color: var(--text-soft);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   position: sticky;
@@ -3112,10 +3107,11 @@ tbody tr:last-child td {
   display: flex;
   align-items: center;
   gap: 13px;
-  padding: 13px 15px;
+  padding: 14px 16px;
   border-radius: var(--r-md);
   border: 1px solid var(--line);
   background: var(--surface);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
 }
 
 .attention-icon {

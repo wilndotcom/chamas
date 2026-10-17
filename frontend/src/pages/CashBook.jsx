@@ -161,7 +161,7 @@ const CashBook = () => {
     return (
       <div className="card">
         <div className="empty-state">
-          <AlertTriangle size={36} style={{ color: '#dc2626' }} />
+          <AlertTriangle size={36} style={{ color: 'var(--red)' }} />
           <p>{error}</p>
           <button className="btn btn-sm btn-secondary" onClick={load} style={{ marginTop: 12 }}>
             <RefreshCw size={14} /> {t('common.retry')}
@@ -307,7 +307,7 @@ const CashBook = () => {
                     <span
                       style={{
                         width: `${Math.max(6, (r.total / Math.max(...moneyIn.map((x) => x.total), 1)) * 100)}%`,
-                        background: 'linear-gradient(90deg,#16a34a,#0d9488)'
+                        background: 'linear-gradient(90deg,var(--brand),var(--accent))'
                       }}
                     />
                   </div>
@@ -349,7 +349,7 @@ const CashBook = () => {
                     <span
                       style={{
                         width: `${Math.max(6, (r.total / maxOut) * 100)}%`,
-                        background: 'linear-gradient(90deg,#f97316,#dc2626)'
+                        background: 'linear-gradient(90deg,var(--orange),var(--red))'
                       }}
                     />
                   </div>

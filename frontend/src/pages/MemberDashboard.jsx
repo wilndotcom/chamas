@@ -228,7 +228,7 @@ const MemberDashboard = () => {
 
           {!hasLoan ? (
             <div className="empty-state">
-              <CheckCircle size={40} style={{ color: '#16a34a' }} />
+              <CheckCircle size={40} style={{ color: 'var(--brand)' }} />
               <p style={{ fontWeight: 600, color: '#0f172a' }}>{t('dash.noActiveLoanTitle')}</p>
               <p style={{ fontSize: 13 }}>{t('dash.keepContributing')}</p>
             </div>
@@ -247,12 +247,12 @@ const MemberDashboard = () => {
 
                 <div className="owe-split">
                   <div className="owe-split-row">
-                    <span className="owe-dot" style={{ background: '#2563eb' }} />
+                    <span className="owe-dot" style={{ background: 'var(--blue)' }} />
                     <span className="owe-split-label">{t('dash.principalStillToPay')}</span>
                     <strong>{money(summary.principal_outstanding)}</strong>
                   </div>
                   <div className="owe-split-row">
-                    <span className="owe-dot" style={{ background: '#f97316' }} />
+                    <span className="owe-dot" style={{ background: 'var(--orange)' }} />
                     <span className="owe-split-label">{t('dash.interestStillToPay')}</span>
                     <strong style={{ color: '#c2410c' }}>{money(summary.interest_outstanding)}</strong>
                   </div>
