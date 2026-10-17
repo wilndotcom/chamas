@@ -98,8 +98,14 @@ final class AdminController
                 $fullName, $cleanUsername, $email, $phone, $hash, $roleId
             ) {
                 $pdo->prepare(
-                    'INSERT INTO admins (full_name, username, email, phone, password_hash, role_id)
-                     VALUES (?, ?, ?, ?, ?, ?)'
+                    /*
+                     * Flagged for a first-sign-in change, because the password was
+                     * chosen by whoever created the account rather than by the
+                     * person who will use it. Until they replace it the account is
+                     * a credential two people know.
+                     */
+                    'INSERT INTO admins (full_name, username, email, phone, password_hash, role_id, must_change_password)
+                     VALUES (?, ?, ?, ?, ?, ?, 1)'
                 )->execute([$fullName, $cleanUsername, $email, $phone ?: null, $hash, $roleId]);
 
                 $id = (int) $pdo->lastInsertId();

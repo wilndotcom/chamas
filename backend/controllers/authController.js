@@ -81,6 +81,12 @@ const adminLogin = async (req, res) => {
         email: admin.email,
         phone: admin.phone,
         role: admin.role_name,
+        /*
+         * Sent with the login so the app can go straight to the change screen
+         * instead of loading a dashboard and having every request on it refused.
+         * The account is on the shared initial password until this clears.
+         */
+        must_change_password: !!admin.must_change_password,
         permissions
       }
     });
@@ -170,7 +176,7 @@ const getAdminProfile = async (req, res) => {
        * client treated the signed-in admin as having no member record at all.
        */
       `SELECT a.id, a.member_id, a.full_name, a.email, a.phone, a.role_id, a.last_login,
-              a.created_at, r.name as role_name
+              a.created_at, a.must_change_password, r.name as role_name
        FROM admins a JOIN roles r ON a.role_id = r.id WHERE a.id = ?`,
       [req.user.id]
     );
@@ -204,6 +210,13 @@ const getAdminProfile = async (req, res) => {
         role_id: a.role_id,
         role: a.role_name,
         last_login: a.last_login,
+        /*
+         * Carried here as well as on the login response, because a page reload
+         * while the account is still flagged reads the profile rather than
+         * logging in again. Without it the flag would be forgotten on refresh and
+         * the app would open normally.
+         */
+        must_change_password: !!a.must_change_password,
         permissions
       }
     });
@@ -235,13 +248,37 @@ const changePassword = async (req, res) => {
       return res.status(401).json({ error: 'Current password is incorrect.' });
     }
 
+    /*
+     * Reusing the current password is refused rather than accepted quietly.
+     *
+     * An account on the shared initial password is here precisely to replace it;
+     * letting the same string through would clear the requirement while leaving
+     * the account exactly as exposed as before, which would make the whole
+     * first-sign-in step a screen that achieves nothing.
+     */
+    if (new_password === current_password) {
+      return res.status(400).json({
+        error: 'The new password must be different from your current one.'
+      });
+    }
+
     const hashedPassword = await bcrypt.hash(new_password, 12);
+    /*
+     * The flag is cleared in the same statement as the password change. Two
+     * statements would leave a window - and a crash between them would leave an
+     * account whose password is new but which is still refused everywhere, which
+     * is indistinguishable from being locked out.
+     */
     await pool.execute(
-      'UPDATE admins SET password_hash = ? WHERE id = ?',
+      'UPDATE admins SET password_hash = ?, must_change_password = 0 WHERE id = ?',
       [hashedPassword, req.user.id]
     );
 
-    res.json({ success: true, message: 'Password changed successfully.' });
+    res.json({
+      success: true,
+      message: 'Password changed successfully.',
+      must_change_password: false
+    });
   } catch (error) {
     res.status(500).json({ error: 'Failed to change password.' });
   }

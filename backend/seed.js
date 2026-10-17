@@ -35,6 +35,12 @@ const DB = {
  * The checks under backend-php read ADMIN_PASSWORD too, so that they can sign
  * in without carrying a password in the published source. The running app
  * never needs it: what it stores and compares is the hash in the database.
+ *
+ * Accounts created here are flagged must_change_password, so this password is a
+ * way in and not a way to stay in: the app refuses everything except the change
+ * of password itself until it has been replaced. That is what makes a shared,
+ * guessable starting password acceptable at all - and the flag is set below, in
+ * the same row as the password, so the two cannot drift apart.
  */
 function randomPassword() {
   // Look-alike characters are left out, because this gets read off a screen
@@ -86,11 +92,12 @@ async function run() {
 
   // Super admin
   await conn.execute(
-    `INSERT INTO admins (full_name, username, email, phone, password_hash, role_id)
-     VALUES (?, ?, ?, ?, ?, 1)
+    `INSERT INTO admins (full_name, username, email, phone, password_hash, role_id, must_change_password)
+     VALUES (?, ?, ?, ?, ?, 1, 1)
      ON DUPLICATE KEY UPDATE
        username = VALUES(username),
        password_hash = VALUES(password_hash),
+       must_change_password = 1,
        is_active = TRUE`,
     [SUPER_ADMIN.full_name, SUPER_ADMIN.username, SUPER_ADMIN.email, SUPER_ADMIN.phone, hash]
   );
@@ -118,17 +125,19 @@ async function run() {
     const h = await bcrypt.hash(a.password, 12);
     const [rows] = await conn.execute('SELECT id FROM roles WHERE name = ?', [a.role]);
     await conn.execute(
-      `INSERT INTO admins (full_name, username, email, phone, password_hash, role_id)
-       VALUES (?, ?, ?, ?, ?, ?)
+      `INSERT INTO admins (full_name, username, email, phone, password_hash, role_id, must_change_password)
+       VALUES (?, ?, ?, ?, ?, ?, 1)
        ON DUPLICATE KEY UPDATE
          username = VALUES(username),
          password_hash = VALUES(password_hash),
          role_id = VALUES(role_id),
+         must_change_password = 1,
          is_active = TRUE`,
       [a.full_name, a.username, a.email, a.phone, h, rows[0].id]
     );
   }
   console.log(`Demo admins ready (${DEMO_ADMINS.length}), on the same password as the super admin`);
+  console.log('They must choose their own password at first sign-in.');
 
   // Backfill a username for any admin added before this feature existed, so a
   // login screen that says "username" is not a lie for upgraded installs.

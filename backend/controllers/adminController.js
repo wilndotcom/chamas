@@ -79,7 +79,12 @@ const createAdmin = async (req, res) => {
       await conn.beginTransaction();
 
       const [result] = await conn.execute(
-        'INSERT INTO admins (full_name, username, email, phone, password_hash, role_id) VALUES (?, ?, ?, ?, ?, ?)',
+        /*
+         * Flagged for a first-sign-in change, because the password was chosen by
+         * whoever created the account rather than by the person who will use it.
+         * Until they replace it the account is a credential two people know.
+         */
+        'INSERT INTO admins (full_name, username, email, phone, password_hash, role_id, must_change_password) VALUES (?, ?, ?, ?, ?, ?, 1)',
         [full_name, cleanUsername, email, phone || null, hashedPassword, role_id]
       );
       adminId = result.insertId;

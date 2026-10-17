@@ -175,6 +175,29 @@ export const AuthProvider = ({ children }) => {
     return data.member;
   };
 
+  /**
+   * Replaces the signed-in administrator's own password.
+   *
+   * The server clears the first-sign-in flag in the same statement that writes the
+   * new hash, so the copy held in state has to follow or the change screen stays
+   * up over an account that is no longer waiting for anything. The session and its
+   * token are deliberately left alone: changing a password is not a reason to be
+   * logged out, and being thrown back to the login screen after doing the right
+   * thing would read as the change having failed.
+   */
+  const changePassword = async (currentPassword, newPassword) => {
+    const { data } = await axios.put('/api/auth/change-password', {
+      current_password: currentPassword,
+      new_password: newPassword
+    });
+
+    setUser((previous) =>
+      previous ? { ...previous, must_change_password: false } : previous
+    );
+
+    return data;
+  };
+
   /** Super admin only: open the portal as another member or admin. */
   const impersonate = async (targetType, targetId) => {
     const { data } = await axios.post('/api/auth/impersonate', {
@@ -245,6 +268,7 @@ export const AuthProvider = ({ children }) => {
         connectionLost,
         login,
         memberLogin,
+        changePassword,
         logout,
         hasPermission,
         impersonate,

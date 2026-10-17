@@ -68,6 +68,47 @@ async function check(name, expectedStatus, expectedText, method, path, opts) {
   return result;
 }
 
+/*
+ * A preflight, because of what a flagged account does to the suites around this
+ * one.
+ *
+ * The shared administrator account starts on a password that is written into the
+ * published repository, and is refused everywhere except the change of password
+ * until it has been replaced. This file survives that on its own - it signs in
+ * and reads a profile, both allowed - but every suite that touches a real
+ * endpoint fails at once, with "Your password must be changed before you can
+ * continue.". Read on its own that looks like sixteen broken features rather
+ * than one account waiting for its owner, so it is detected here and named.
+ *
+ * This is the file the other suites are run from, so it is where the answer is
+ * worth printing.
+ */
+async function adminIsWaitingForPasswordChange() {
+  try {
+    const res = await fetch(`${BASE}/api/auth/admin-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: 'admin', password: ADMIN_PASSWORD }),
+    });
+
+    if (res.status !== 200) return false;
+
+    const body = await res.json();
+    return body?.admin?.must_change_password === true;
+  } catch {
+    // An unreachable server is the next check's problem, not this one's.
+    return false;
+  }
+}
+
+if (await adminIsWaitingForPasswordChange()) {
+  console.log('\nThe administrator account is waiting for its first sign-in password change.');
+  console.log('Nothing else will answer until that is done, so the checks cannot run yet.\n');
+  console.log('  php tests/reset-admin-passwords.php --apply --unblock   # to run them');
+  console.log('  php tests/reset-admin-passwords.php --apply            # to ask again after\n');
+  process.exit(1);
+}
+
 console.log('\n=== health ===');
 await check('health reports ok', 200, '"status":"ok"', 'GET', '/api/health');
 await check('health lists mounted and pending', 200, '"pending"', 'GET', '/api/health');

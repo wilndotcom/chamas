@@ -322,9 +322,9 @@ The script is safe to re-run — it uses upserts, so you can run it any time to 
 ### Login Credentials
 
 The seed script creates every administrator account on **one password that you
-supply**. There is no default. A password written into a script is a password
-that works on every install the script has ever been run against, and this
-repository is public - so publishing one would publish a working login.
+supply**. It has no default of its own. A password written into a script is a
+password that works on every install the script has ever been run against, and
+this repository is public - so publishing one would publish a working login.
 
 ```bash
 cd backend
@@ -341,6 +341,23 @@ Leave `ADMIN_PASSWORD` unset and the script generates a strong one and prints it
 once, on the line that says so. It is not written to disk: save it at the moment
 it appears, or run the seed again with `ADMIN_PASSWORD` set.
 
+The Windows installer (`deploy/deploy-xampp.ps1`) is the exception. It starts
+every administrator on `admin1234`, because a first sign-in should not depend on
+finding a generated string and typing it correctly. That is only acceptable
+because it expires: the account is flagged, and the app refuses everything except
+the change of password until you have picked your own. Until then the only things
+that answer are your own profile, your language preference, the public settings
+and the change itself - so signing in on the shared password gets you exactly one
+screen, and no further.
+
+If the shared password is lost, or you want to put an account back on it, run the
+tool that armed it:
+
+```bash
+php backend-php/tests/reset-admin-passwords.php            # what would change
+php backend-php/tests/reset-admin-passwords.php --apply    # set it, and require a change
+```
+
 **Admin portal** (login with username or email):
 
 | Role | Username | Email |
@@ -350,8 +367,8 @@ it appears, or run the seed again with `ADMIN_PASSWORD` set.
 | Chairperson | `chair` | `chair@theteam.com` |
 | Secretary | `secretary` | `secretary@theteam.com` |
 
-All four are created on that same password. Change the ones you intend to keep,
-from Settings, once you are in.
+All four are created on that same password. The app asks each of them to choose
+their own the first time they sign in, and refuses everything else until they do.
 
 ### Checking a deployment
 
@@ -362,6 +379,18 @@ same password. They read it from `ADMIN_PASSWORD` in `backend/.env`, which is in
 ```
 ADMIN_PASSWORD=choose-something-long
 ```
+
+An account still waiting for its first sign-in password change refuses those
+suites' requests, so `node check.mjs` stops and says so instead of reporting every
+endpoint as broken:
+
+```bash
+php backend-php/tests/reset-admin-passwords.php --apply --unblock  # before the checks
+php backend-php/tests/reset-admin-passwords.php --apply           # to ask again after
+```
+
+If you change an administrator's password in the app, update `ADMIN_PASSWORD` to
+match it. The suites read that value, and a stale one reads as a wrong password.
 
 **Member portal** (login with phone):
 

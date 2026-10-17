@@ -108,6 +108,13 @@ final class AuthController
                 'email' => $admin['email'],
                 'phone' => $admin['phone'],
                 'role' => $admin['role'],
+                /*
+                 * Sent with the login so the app can go straight to the change
+                 * screen instead of loading a dashboard and having every request
+                 * on it refused. The account is on the shared initial password
+                 * until this clears.
+                 */
+                'must_change_password' => (bool) $admin['must_change_password'],
                 'permissions' => $principal['permissions'],
             ],
         ]);
@@ -322,6 +329,13 @@ public static function memberRegister(Request $r): void
                 'role_id' => (int) $admin['role_id'],
                 'role' => $admin['role'],
                 'last_login' => $admin['last_login'],
+                /*
+                 * Carried here as well as on the login response, because a page
+                 * reload while the account is still flagged reads the profile
+                 * rather than logging in again. Without it the flag would be
+                 * forgotten on refresh and the app would open normally.
+                 */
+                'must_change_password' => !empty($admin['must_change_password']),
                 'permissions' => $admin['permissions'] ?? [],
             ],
         ]);
@@ -456,18 +470,43 @@ public static function memberRegister(Request $r): void
         );
 
         if ($row === null || !password_verify($current, $row['password_hash'])) {
-            Response::error('Your current password is not correct.', 401);
+            // Same wording as the Node version. The frontend maps known backend
+            // strings onto translation keys, and two words for one failure is how
+            // a Kiswahili user gets an English answer.
+            Response::error('Current password is incorrect.', 401);
+        }
+
+        /*
+         * Reusing the current password is refused rather than accepted quietly.
+         *
+         * An account on the shared initial password is here precisely to replace
+         * it; letting the same string through would clear the requirement while
+         * leaving the account exactly as exposed as before, which would make the
+         * whole first-sign-in step a screen that achieves nothing.
+         */
+        if (hash_equals($next, $current)) {
+            Response::error('The new password must be different from your current one.', 400);
         }
 
         Database::run(
-            'UPDATE admins SET password_hash = ? WHERE id = ?',
+            /*
+             * The flag is cleared in the same statement as the password change.
+             * Two statements would leave a window - and a crash between them would
+             * leave an account whose password is new but which is still refused
+             * everywhere, which is indistinguishable from being locked out.
+             */
+            'UPDATE admins SET password_hash = ?, must_change_password = 0 WHERE id = ?',
             [password_hash($next, PASSWORD_BCRYPT, ['cost' => self::BCRYPT_COST]), $admin['id']]
         );
 
         // Recorded so a password change can be explained in an audit later.
         self::audit($admin['id'], 'password_change', 'admin', $admin['id'], ['via' => 'self']);
 
-        Response::json(['success' => true, 'message' => 'Password updated']);
+        Response::json([
+            'success' => true,
+            'message' => 'Password changed successfully.',
+            'must_change_password' => false,
+        ]);
     }
 
     /**

@@ -138,6 +138,8 @@ final class Auth
             if (empty($principal['is_active'])) {
                 Response::error('Account is deactivated.', 403);
             }
+
+            self::refuseUntilPasswordChanged($request, $principal);
         } elseif (($principal['status'] ?? '') !== 'active') {
             Response::error('Account is not active.', 403);
         }
@@ -202,6 +204,8 @@ final class Auth
             if (empty($principal['is_active'])) {
                 Response::error('Account is deactivated.', 403);
             }
+
+            self::refuseUntilPasswordChanged($request, $principal);
         } elseif (($principal['status'] ?? '') !== 'active') {
             Response::error('Account is not active.', 403);
         }
@@ -223,6 +227,82 @@ final class Auth
             Response::error('Access denied. Super admin only.', 403);
         }
         return $principal;
+    }
+
+    /**
+     * Refuses an administrator who has not yet replaced their first password.
+     *
+     * Administrator accounts start on one shared password that is written into
+     * this published repository, so that signing in for the first time needs no
+     * generated string read off a screen. That is only safe while it lasts: until
+     * the password is replaced, the account is not really a credential, it is a
+     * door that was left open.
+     *
+     * The frontend refuses to draw anything but the change screen while the flag
+     * is set. This is the half that makes the refusal true rather than polite - a
+     * caller that ignores the interface and speaks to the API directly is stopped
+     * here, with the same answer the interface would have given.
+     *
+     * Both places that authenticate an admin call this, because they are the only
+     * two doors into an admin endpoint and a rule enforced at one of them is a
+     * rule with a way around it.
+     */
+    private static function refuseUntilPasswordChanged(Request $request, array $principal): void
+    {
+        if (empty($principal['must_change_password'])) {
+            return;
+        }
+
+        if (self::passwordChangeExempt($request)) {
+            return;
+        }
+
+        Response::error(
+            'Your password must be changed before you can continue.',
+            403,
+            ['must_change_password' => true]
+        );
+    }
+
+    /**
+     * The few routes a flagged administrator is still allowed to reach.
+     *
+     * Without an opening the account could never escape the state, and a
+     * mandatory password change that also blocks the password change is a locked
+     * door with the key on the wrong side.
+     *
+     * Matched against the end of the path rather than compared whole, because the
+     * same app is served from the root of a domain and from /the-team under
+     * XAMPP. A whole-path comparison would quietly stop matching on the prefixed
+     * install, and the first thing it would block is the profile request the app
+     * makes on every load - so an administrator who had just signed in correctly
+     * would be bounced straight back to the login screen they came from.
+     *
+     * The list is as short as it can be. /api/settings/public and /api/chama are
+     * read for the name and logo the change screen is drawn with, and
+     * /api/me/language for the language it is drawn in. None of them exposes
+     * anything about the group's money.
+     */
+    private static function passwordChangeExempt(Request $request): bool
+    {
+        static $exempt = [
+            '/api/auth/profile',
+            '/api/auth/change-password',
+            '/api/auth/refresh',
+            '/api/me/language',
+            '/api/settings/public',
+            '/api/chama/profile',
+        ];
+
+        $path = rtrim($request->path(), '/');
+
+        foreach ($exempt as $route) {
+            if (str_ends_with($path, $route)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -310,7 +390,7 @@ final class Auth
             return Database::one(
                 <<<'SQL'
                     SELECT a.id, a.member_id, a.full_name, a.email, a.phone, a.role_id,
-                           a.is_active, r.name AS role
+                           a.is_active, a.must_change_password, r.name AS role
                       FROM admins a
                       JOIN roles r ON a.role_id = r.id
                      WHERE a.id = ?

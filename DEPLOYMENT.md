@@ -142,12 +142,21 @@ for f in database/migrations/*.sql; do
 done
 ```
 
-All migrations use `CREATE TABLE IF NOT EXISTS` / `INSERT IGNORE`, so re-running them is safe.
+The XAMPP installer (`deploy/deploy-xampp.ps1`) runs this loop for you, in filename order,
+on every deploy — so a Windows install never needs the commands above.
 
-Two migrations guard themselves with `information_schema` checks instead, because they
-add a column or a constraint to a table that already exists and would otherwise fail on
-replay: `008_admin_username.sql` and `011_member_language.sql`. Both are still safe to
-re-run.
+Migrations are mostly re-runnable, but not all of them are written to be. Two add a
+column with a plain `ALTER TABLE ... ADD COLUMN` — `003_member_registration.sql` and
+`005_roles_and_overrides.sql` — which reports `Duplicate column name` the second time.
+That error means the change is already in place, and everything after it in that file
+has been applied too, so it is safe to ignore. The installer knows these codes and does
+not report them; anything else it does report.
+
+The rest are written to be replayed: `CREATE TABLE IF NOT EXISTS`, `INSERT IGNORE`, and
+`MODIFY COLUMN`, which is idempotent by nature because it rewrites the column to the same
+definition. Five guard themselves with `information_schema` checks instead, because they
+add a column or a constraint to a table that already exists: `008_admin_username.sql`,
+`011_member_language.sql`, `016`, `017` and `018`. Those are safe to re-run.
 
 `011_member_language.sql` adds `members.language` and `admins.language` with a `CHECK`
 constraint limiting the value to `en` or `sw`. It requires MariaDB 10.2+ or MySQL 8.0.16+,
@@ -281,11 +290,48 @@ NODE_ENV=production ADMIN_PASSWORD='choose-something-long' node seed.js
 `seed.js` is safe to re-run — it uses upserts. It creates the super admin,
 sample admins and members, and demo figures.
 
-The administrator password comes from `ADMIN_PASSWORD`, and there is no default.
-A default would have to be written into the script, the script is published, and
-a published password is a working login for every install that ran it. Leave the
-variable unset and the script generates a strong password and prints it once,
-without writing it anywhere — so set it rather than race to copy the output.
+The administrator password comes from `ADMIN_PASSWORD`, and `seed.js` itself has no
+default. A default written into the script would be published, and a published password
+is a working login for every install that ran it. Leave the variable unset and the script
+generates a strong password and prints it once, without writing it anywhere — so set it
+rather than race to copy the output.
+
+### First sign-in: the password change is not optional
+
+An administrator signing in for the first time is flagged, and the API refuses everything
+except the change of password itself until it has been replaced:
+
+```
+{"error":"Your password must be changed before you can continue.","must_change_password":true}
+```
+
+What gets through is short: `/api/auth/profile`, `/api/auth/change-password`,
+`/api/auth/refresh`, `/api/me/language`, `/api/settings/public` and `/api/chama/profile`.
+That is enough for the app to boot, say who is signed in, and reach the screen that fixes
+it — and nothing else. The rule is enforced on the server rather than in the interface,
+because the interface is the part a caller is free to ignore.
+
+The Windows installer starts every administrator on one shared password, `admin1234`, so
+that signing in the first time needs no generated string read off a screen. That is only
+defensible because it expires, and the flag is what makes it expire.
+
+An account can be put back on the shared password, or on any other, from the machine the
+app runs on:
+
+```bash
+php backend-php/tests/reset-admin-passwords.php                    # what would change
+php backend-php/tests/reset-admin-passwords.php --apply            # set it, require a change
+php backend-php/tests/reset-admin-passwords.php --apply --unblock  # let the checks run
+```
+
+`--unblock` clears the requirement without touching any password. The check suites sign in
+as the shared administrator account and cannot exercise anything while it is flagged, so
+they need it off — `node check.mjs` says as much itself rather than failing sixteen times
+and calling it sixteen bugs. Put the requirement back with `--apply` afterwards.
+
+If an administrator changes their password in the app, update `ADMIN_PASSWORD` in
+`backend/.env` to match. That is where the checks read it from, and a value left behind
+there reads as a wrong password rather than as a stale file.
 
 If you want a production install with no demo data, skip the seed and insert the super admin
 yourself:

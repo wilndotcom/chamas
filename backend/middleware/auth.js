@@ -39,6 +39,61 @@ const effectivePermissions = async (adminId, roleName, rolePermissions) => {
 };
 
 /**
+ * The few routes an administrator may still reach before replacing the password
+ * their account was created with.
+ *
+ * Administrator accounts start on one shared password that is written into this
+ * published repository, so that signing in for the first time needs no generated
+ * string read off a screen. That is only safe while it lasts: until the password
+ * is replaced the account is not really a credential, it is a door left open.
+ *
+ * Without an opening the account could never escape the state, and a mandatory
+ * password change that also blocks the password change is a locked door with the
+ * key on the wrong side. So: its own profile (read on every page load), the
+ * change itself, the language preference, and the name and logo the change screen
+ * is drawn with. None of these exposes anything about the group's money.
+ *
+ * Matched against the end of the path rather than compared whole, because the
+ * same app is served from the root of a domain and from a folder such as
+ * /the-team. A whole-path comparison would stop matching on a prefixed install,
+ * and the first thing it would block is the profile request the app makes on
+ * every load - bouncing an administrator who had just signed in correctly back
+ * to the login screen.
+ */
+const PASSWORD_CHANGE_EXEMPT = [
+  '/api/auth/profile',
+  '/api/auth/change-password',
+  '/api/auth/refresh',
+  '/api/me/language',
+  '/api/settings/public',
+  '/api/chama/profile'
+];
+
+const passwordChangeExempt = (req) => {
+  const path = (req.originalUrl || req.url || '').split('?')[0].replace(/\/+$/, '');
+  return PASSWORD_CHANGE_EXEMPT.some((route) => path.endsWith(route));
+};
+
+/**
+ * Answers a flagged administrator with the same refusal the PHP backend gives.
+ *
+ * Returns true when the request has been answered, so the caller can simply
+ * `if (refuseUntilPasswordChanged(req, res, admin)) return;` and cannot forget to
+ * stop. Both places that authenticate an admin call this, because a rule enforced
+ * at one of two doors is a rule with a way around it.
+ */
+const refuseUntilPasswordChanged = (req, res, admin) => {
+  if (!admin || !admin.must_change_password) return false;
+  if (passwordChangeExempt(req)) return false;
+
+  res.status(403).json({
+    error: 'Your password must be changed before you can continue.',
+    must_change_password: true
+  });
+  return true;
+};
+
+/**
  * Verifies a JWT and loads the principal.
  * Tokens are typed: 'admin' or 'member'. A token of the wrong type is rejected,
  * so an admin token can never be used against member-only endpoints (or vice versa).
@@ -62,7 +117,8 @@ const verifyToken = async (req, res, next, expectedType) => {
 
     if (expectedType === 'admin') {
       const [admins] = await pool.execute(
-        `SELECT a.id, a.full_name, a.email, a.phone, a.role_id, a.is_active, r.name as role_name
+        `SELECT a.id, a.full_name, a.email, a.phone, a.role_id, a.is_active,
+                a.must_change_password, r.name as role_name
          FROM admins a
          JOIN roles r ON a.role_id = r.id
          WHERE a.id = ?`,
@@ -77,6 +133,8 @@ const verifyToken = async (req, res, next, expectedType) => {
       if (!admin.is_active) {
         return res.status(403).json({ error: 'Account is deactivated.' });
       }
+
+      if (refuseUntilPasswordChanged(req, res, admin)) return;
 
       const [permissions] = await pool.execute(
         `SELECT p.name FROM permissions p
@@ -94,6 +152,7 @@ const verifyToken = async (req, res, next, expectedType) => {
         role_id: admin.role_id,
         role: admin.role_name,
         impersonated,
+        must_change_password: !!admin.must_change_password,
         permissions: await effectivePermissions(admin.id, admin.role_name, permissions)
       };
     } else {
@@ -208,7 +267,7 @@ const authenticateEither = async (req, res, next) => {
      */
     if (decoded.type === 'admin') {
       const [admins] = await pool.execute(
-        `SELECT a.id, a.role_id, a.is_active, r.name AS role_name
+        `SELECT a.id, a.role_id, a.is_active, a.must_change_password, r.name AS role_name
            FROM admins a
            JOIN roles r ON a.role_id = r.id
           WHERE a.id = ?`,
@@ -220,6 +279,13 @@ const authenticateEither = async (req, res, next) => {
       // adds context.
       if (admins.length > 0) {
         const admin = admins[0];
+
+        // The first-password rule applies here too. These dual-portal endpoints
+        // include the ones an admin uses to record money on somebody's behalf, so
+        // leaving this door open would hand back most of what the other guard
+        // just closed.
+        if (refuseUntilPasswordChanged(req, res, admin)) return;
+
         const [perms] = await pool.execute(
           `SELECT p.name FROM permissions p
              JOIN role_permissions rp ON p.id = rp.permission_id
@@ -233,6 +299,7 @@ const authenticateEither = async (req, res, next) => {
           role: admin.role_name,
           role_id: admin.role_id,
           is_active: admin.is_active,
+          must_change_password: !!admin.must_change_password,
           permissions: await effectivePermissions(admin.id, admin.role_name, names)
         };
         return next();

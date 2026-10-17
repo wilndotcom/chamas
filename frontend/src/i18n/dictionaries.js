@@ -488,6 +488,24 @@ export const en = {
   'portal.backToOwn': 'Return to my own portal',
   'portal.viewingAs': 'You are viewing as {name}',
 
+  // ---------- own password ----------
+  // Covers both the mandatory change on first sign-in and the voluntary one from
+  // the account menu. One set of words, because it is the same action.
+  'password.menuItem': 'Change password',
+  'password.current': 'Current password',
+  'password.new': 'New password',
+  'password.confirm': 'Confirm new password',
+  'password.rule': 'At least 8 characters. Use something only you know.',
+  'password.save': 'Save new password',
+  'password.saving': 'Saving…',
+  'password.changed': 'Your password has been changed.',
+  'password.mustDiffer': 'Choose a password different from the one you just typed.',
+  'password.setAndContinue': 'Set password and continue',
+  'password.firstTitle': 'Choose your own password',
+  'password.firstGreeting': '{name}, one more step before you start.',
+  'password.firstBody': 'This account still signs in with the password it was created with, which is not private. Choose your own to carry on — until you do, nothing else in the system will open.',
+  'password.signOutInstead': 'Sign out instead',
+
   // ---------- errors and validation ----------
   'err.generic': 'Something went wrong. Please try again.',
   'err.network': 'Cannot reach the server. Check that it is running.',
@@ -496,6 +514,10 @@ export const en = {
   'err.invalidPhone': 'Enter a valid Kenyan phone number, e.g. 0712345678.',
   'err.passwordShort': 'Password must be at least 8 characters.',
   'err.passwordMismatch': 'Passwords do not match.',
+  'err.currentPasswordWrong': 'Your current password is not correct.',
+  'err.passwordReused': 'Choose a password different from the one you have now.',
+  'err.passwordChangeRequired': 'Your password must be changed before you can continue.',
+  'err.passwordChangeFailed': 'The password could not be changed.',
   'err.loadFailed': 'Failed to load',
   'err.saveFailed': 'Failed to save'
 };
@@ -959,6 +981,22 @@ export const sw = {
   'portal.backToOwn': 'Rudi kwenye lengo langu',
   'portal.viewingAs': 'Unaona kama {name}',
 
+  // ---------- own password ----------
+  'password.menuItem': 'Badilisha nenosiri',
+  'password.current': 'Nenosiri la sasa',
+  'password.new': 'Nenosiri jipya',
+  'password.confirm': 'Thibitisha nenosiri jipya',
+  'password.rule': 'Herufi 8 au zaidi. Tumia kitu unachojua wewe pekee.',
+  'password.save': 'Hifadhi nenosiri jipya',
+  'password.saving': 'Inahifadhi…',
+  'password.changed': 'Nenosiri lako limebadilishwa.',
+  'password.mustDiffer': 'Chagua nenosiri tofauti na lile uliloandika sasa.',
+  'password.setAndContinue': 'Weka nenosiri na uendelee',
+  'password.firstTitle': 'Chagua nenosiri lako mwenyewe',
+  'password.firstGreeting': '{name}, hatua moja zaidi kabla ya kuanza.',
+  'password.firstBody': 'Akaunti hii bado inaingia kwa nenosiri ililoundwa nalo, ambalo si la faragha. Chagua lako mwenyewe ili kuendelea — hadi ufanye hivyo, hakuna kingine kitakachofunguka.',
+  'password.signOutInstead': 'Toka badala yake',
+
   // ---------- errors and validation ----------
   'err.generic': 'Hitilafu imetokea. Tafuta tena.',
   'err.network': 'Haiwezi kufika kwenye seva. Hakikisha inafanya kazi.',
@@ -967,6 +1005,10 @@ export const sw = {
   'err.invalidPhone': 'Weka namba ya simu ya Kenya inayofaa, mfano 0712345678.',
   'err.passwordShort': 'Nenosiri lazima liwe na herufi 8 au zaidi.',
   'err.passwordMismatch': 'Nenosiri hazilingani.',
+  'err.currentPasswordWrong': 'Nenosiri lako la sasa si sahihi.',
+  'err.passwordReused': 'Chagua nenosiri tofauti na lile ulilonalo sasa.',
+  'err.passwordChangeRequired': 'Lazima ubadilishe nenosiri lako kabla ya kuendelea.',
+  'err.passwordChangeFailed': 'Nenosiri halikuweza kubadilishwa.',
   'err.loadFailed': 'Imeshindwa kupakia',
   'err.saveFailed': 'Imeshindwa kuhifadhi'
 };

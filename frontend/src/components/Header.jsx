@@ -3,9 +3,10 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useFormat } from '../context/FormatContext';
 import ChamaLogo from './ChamaLogo';
+import ChangePasswordForm from './ChangePasswordForm';
 import LanguagePicker from './LanguagePicker';
 import { useI18n } from '../i18n/I18nContext';
-import { Menu, LogOut, Shield, ChevronDown, User } from 'lucide-react';
+import { Menu, LogOut, Shield, ChevronDown, User, KeyRound } from 'lucide-react';
 
 /**
  * Application header: drawer toggle plus the signed-in account menu.
@@ -23,6 +24,7 @@ const Header = ({ onOpenMenu, portalLabel, drawerOpen = false }) => {
   const { t } = useI18n();
   const { chamaName } = useFormat();
   const [open, setOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
   const ref = useRef(null);
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -132,6 +134,22 @@ const Header = ({ onOpenMenu, portalLabel, drawerOpen = false }) => {
               <span>{t('auth.signedInAs', { role: roleLabel })}</span>
             </button>
 
+            {/* Members choose their own password when they register, so there is
+                nothing for them to change here. */}
+            {user?.type === 'admin' && (
+              <button
+                className="user-dropdown-item"
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  setPasswordOpen(true);
+                }}
+              >
+                <KeyRound size={16} />
+                <span>{t('password.menuItem')}</span>
+              </button>
+            )}
+
             <button
               className="user-dropdown-item user-dropdown-item--danger"
               role="menuitem"
@@ -143,6 +161,29 @@ const Header = ({ onOpenMenu, portalLabel, drawerOpen = false }) => {
           </div>
         )}
       </div>
+
+      {passwordOpen && (
+        <div className="modal-overlay" onClick={() => setPasswordOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>{t('password.menuItem')}</h2>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setPasswordOpen(false)}
+                aria-label={t('common.close')}
+              >
+                &times;
+              </button>
+            </div>
+
+            <ChangePasswordForm
+              onChanged={() => setPasswordOpen(false)}
+              onCancel={() => setPasswordOpen(false)}
+            />
+          </div>
+        </div>
+      )}
     </header>
   );
 };

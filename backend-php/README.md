@@ -8,40 +8,36 @@ similar) with no Node runtime.
 
 ## Status
 
-This is a port in progress, not a finished one. `GET /api/health` reports exactly
-where it stands:
+Complete. Every endpoint group the frontend calls is served by PHP. The Node
+version at `../backend` is kept working as a fallback, reading the same database.
+
+`GET /api/health` reports where it stands — `pending` is the list of groups not
+ported yet, and it is empty:
 
 ```json
 {
   "status": "ok",
-  "port": {
-    "mounted": ["/api/auth"],
-    "pending": ["/api/members", "/api/loans", "..."]
-  }
+  "port": { "mounted": ["/api/auth", "/api/members", "..."], "pending": [] }
 }
 ```
 
-Groups that are not ported yet answer **501** and name themselves, rather than
-404ing. A 501 says "the work isn't done"; a 404 would look like a bug in working
-code, and the two are impossible to tell apart from the frontend.
+A group that had not been ported answers **501** and names itself rather than
+404ing. A 501 says "the work is not done"; a 404 looks like a bug in working code,
+and the two are impossible to tell apart from the frontend.
 
-### Done
+### What is ported
 
 | Area | Notes |
 | --- | --- |
 | Bootstrap | `public/index.php`, env loading, CORS, security headers, error handling |
 | Routing | Patterns with `:params` and `*` wildcards; method matching; SPA fallback |
 | Database | PDO with real prepared statements; `all` / `one` / `scalar` / `insert` / `transaction` |
-| Auth | Admin + member login, JWT issue and verify, permissions, super admin, impersonation |
+| Auth | Admin + member login, JWT issue and verify, permissions, super admin, impersonation, first sign-in |
 | Rate limiting | Per-IP counters via APCu, falling back to locked files |
+| The rest | Members, contributions, loans, welfare, transparency, notifications, settings, M-Pesa, reports, ledger, roles, permissions, chama, payment gateways |
 
-### Not yet
-
-Members, contributions, loans, welfare, transparency, notifications, settings,
-M-Pesa, reports, ledger, roles, permissions, chama, payment gateways.
-
-**Do not deploy this yet.** The Node version at `../backend` is complete and
-still works.
+Every error string is asserted against the Node version's wording, because the
+frontend branches on the text rather than on a code.
 
 ## Running it
 
@@ -99,11 +95,31 @@ screen. Use `Log::warn()`.
 
 ## Tests
 
+Run against a PHP server on `:5050` (`PHP_BASE` overrides the address):
+
 | File | Checks |
 | --- | --- |
 | `check.mjs` | Login, tokens, error strings, routing, body parsing |
-| `check-interop.mjs` | Tokens crossing both ways; signature, expiry, lifetime |
+| `check-settings.mjs` | The settings rules, especially the ones protecting credentials |
+| `check-mpesa.mjs` | The M-Pesa callbacks |
+| `check-member-payment.mjs` | A member's payment, end to end |
+| `check-till.mjs` | That the M-Pesa settings are one till number |
+| `check-first-login.mjs` | The first sign-in password rule, then puts the account back as it found it |
+| `check-db-shapes.mjs` | That PDO returns values in the shape the port expects |
+| `check-interop.mjs` | That the two backends accept each other's tokens |
+| `check-parity.mjs` | PHP against Node, on the same live requests (needs Node on `:5000`) |
 | `check-token-types.mjs` | A real member token refused on admin routes |
+| `check-lifecycle.mjs` | The welfare fund and loans through their whole life cycle |
+
+Plus the ones needing real credentials or a public address, which skip when those
+are absent: `check-callback-arrives`, `check-pin-callback`, `check-till-live`,
+`check-till-swap`, `check-till-works`, `check-learns-address`.
 
 Error strings are asserted exactly. The frontend branches on them, so a reworded
 "helpful" message in PHP would break the portal with no obvious cause.
+
+`tests/reset-admin-passwords.php` is the one script here that changes the
+database. It puts administrator accounts on the shared starting password and
+requires a change at the next sign-in, or clears that requirement with
+`--unblock`. Run the checks, then run it again without `--unblock` — the suites
+sign in as that account and cannot do anything while it is flagged.

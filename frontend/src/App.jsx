@@ -4,6 +4,7 @@ import { useAuth } from './context/AuthContext';
 import { useI18n } from './i18n/I18nContext';
 import { Inbox } from 'lucide-react';
 import Login from './pages/Login';
+import FirstLoginPassword from './pages/FirstLoginPassword';
 import Layout from './components/Layout';
 import Footer from './components/Footer';
 import ConnectionLostNotice from './components/ConnectionLostNotice';
@@ -142,6 +143,27 @@ function App() {
     return (
       <div className="login-page">
         <Login />
+        <Footer variant="onDark" />
+      </div>
+    );
+  }
+
+  /*
+   * Still on the password the account was created with.
+   *
+   * Checked before the routes rather than inside a route guard, so there is no
+   * path, link or back button that reaches the application while the flag is set.
+   * A guard on each page would have to be remembered on every page added later,
+   * and the first one that forgot would be the hole.
+   *
+   * The backend refuses the same requests independently - see refuseUntilPassword
+   * Changed in app/Auth.php - so an account in this state cannot be used by
+   * talking to the API directly either.
+   */
+  if (user.type === 'admin' && user.must_change_password) {
+    return (
+      <div className="login-page">
+        <FirstLoginPassword />
         <Footer variant="onDark" />
       </div>
     );

@@ -21,6 +21,10 @@ const ERROR_MAP = {
   'Failed to fetch profile.': 'err.profileFailed',
   'Current and new password are required.': 'err.passwordFieldsRequired',
   'New password must be at least 8 characters.': 'err.passwordTooShort',
+  'Current password is incorrect.': 'err.currentPasswordWrong',
+  'The new password must be different from your current one.': 'err.passwordReused',
+  'The new passwords do not match.': 'err.passwordMismatch',
+  'Your password must be changed before you can continue.': 'err.passwordChangeRequired',
 
   // Admins
   'All fields are required.': 'err.allFieldsRequired',

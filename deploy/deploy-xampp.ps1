@@ -304,6 +304,22 @@ if (Test-Path $devEnv) {
 $adminPassword = $existingAdminPassword
 if ($dev.ContainsKey('ADMIN_PASSWORD')) { $adminPassword = $dev['ADMIN_PASSWORD'] }
 
+# The starting password, when nothing is on record anywhere.
+#
+# A documented, shared value, on purpose: signing in for the first time should
+# not depend on finding a generated string and typing it correctly. It is only
+# defensible because it expires - the account is flagged and the app refuses
+# everything except the change of password itself until it has been replaced, so
+# the worst case is that somebody else chooses the password first, and the
+# operator can take the account back with
+# backend-php/tests/reset-admin-passwords.php.
+#
+# There used to be no default, because a default in a published file is a working
+# login on any install that has one. That is still true. What changed is that the
+# login no longer gets an account that can do anything.
+$defaultAdminPassword = 'admin1234'
+if (-not $adminPassword) { $adminPassword = $defaultAdminPassword }
+
 # The signing secret is KEPT across deployments, not regenerated.
 #
 # Regenerating it invalidates every session in every browser, so every update logs
@@ -353,6 +369,94 @@ if ($adminPassword) {
 $envLines | Set-Content -Path $envFile -Encoding ASCII
 
 Write-Ok "Written to backend\.env"
+
+# ---------------------------------------------------------------- database
+
+Write-Step 'Applying database migrations ...'
+
+# Schema changes arrive as numbered files under database/migrations. Until this
+# step existed they had to be applied by hand, from a documented shell loop, and
+# nothing failed when they were not: the app broke later, on whichever column it
+# asked for next, usually as a 500 from a single screen with no hint that the
+# database was a version behind.
+#
+# A deploy is the one moment the code and the schema are meant to be in step, so
+# it is the place to make them so. Every migration is written to be re-runnable -
+# CREATE TABLE IF NOT EXISTS, ADD COLUMN IF NOT EXISTS, INSERT IGNORE - which is
+# what makes applying the whole directory on every deploy safe rather than
+# something to be clever about. They run in filename order, which is their order
+# of authorship.
+$mysqlExe = 'C:\xampp\mysql\bin\mysql.exe'
+$migrations = Join-Path $project 'database\migrations'
+
+if ((Test-Path $mysqlExe) -and (Test-Path $migrations)) {
+    # -p is passed only when a password exists: an empty -p makes the client
+    # prompt, and a prompt inside a script hangs the deploy with no output at all.
+    $mysqlArgs = "`"$mysqlExe`" -u $dbUser --host=$dbHost"
+    if ($dbPass) { $mysqlArgs += " -p$dbPass" }
+
+    $applied = 0
+    $alreadyApplied = 0
+    $migrationErrors = @()
+
+    # Errors that mean "this migration has already run here".
+    #
+    # 003 and 005 are not replayable: they add a column with a plain ADD COLUMN,
+    # which is an error the second time. Replaying the directory is still right -
+    # a fresh install needs every file, and nothing records which have run - so
+    # these are expected on an install that is already up to date and must not be
+    # reported as failures. Reporting them would bury a real one, which is the
+    # whole reason for looking at the output.
+    #
+    # Everything else is named and shown.
+    $expectedCodes = @('1050', '1060', '1061', '1062', '1091', '1826', '1827')
+
+    foreach ($file in (Get-ChildItem $migrations -Filter '*.sql' | Sort-Object Name)) {
+        # Run through cmd, for two reasons.
+        #
+        # A migration holds more than one statement, so it has to arrive over stdin
+        # rather than in -e, which runs only the first. PowerShell cannot feed a
+        # file to stdin for a native command, but cmd can.
+        #
+        # And cmd keeps the client's complaints off PowerShell's error stream: this
+        # script runs with ErrorActionPreference = Stop, where a native command
+        # that writes to stderr aborts the deploy. A migration that fails is worth
+        # reporting, not worth stopping a deploy over half way through.
+        $command = "$mysqlArgs $dbName < `"$($file.FullName)`" 2>&1"
+        $result = (& cmd /c $command | Out-String).Trim()
+
+        if ($LASTEXITCODE -eq 0) {
+            $applied++
+            continue
+        }
+
+        $codes = [regex]::Matches($result, 'ERROR (\d+)') | ForEach-Object { $_.Groups[1].Value }
+        $unexpected = @($codes | Where-Object { $expectedCodes -notcontains $_ })
+
+        if ($codes.Count -gt 0 -and $unexpected.Count -eq 0) {
+            $alreadyApplied++
+        } else {
+            $migrationErrors += "$($file.Name): " + ($result -replace '\s+', ' ')
+        }
+    }
+
+    if ($migrationErrors.Count -eq 0) {
+        if ($alreadyApplied -gt 0) {
+            Write-Ok "Schema checked: $applied file(s) applied, $alreadyApplied already in place"
+        } else {
+            Write-Ok "Schema checked ($applied migration file(s))"
+        }
+    } else {
+        # Loud, but not fatal. Stopping here would leave the operator with half a
+        # deploy, and the named files are the actionable part.
+        Write-Warn "$($migrationErrors.Count) migration file(s) reported an error:"
+        foreach ($migrationError in $migrationErrors) { Write-Warn "  $migrationError" }
+        Write-Warn 'Anything missing from the schema shows up as an error on one screen.'
+    }
+} else {
+    Write-Warn 'The mysql client was not found, so migrations were not applied.'
+    Write-Warn "Apply them by hand before using the app: $migrations"
+}
 
 # ---------------------------------------------------------------- protect
 
@@ -481,17 +585,41 @@ try {
 
 # ---------------------------------------------------------------- done
 
+# The port Apache actually listens on, read from its own configuration.
+#
+# Printed rather than assumed, because it is the one thing the operator has to
+# type correctly and the default is not always the truth: this machine runs
+# Apache on 8080 because something else already holds 80, so a hardcoded
+# http://localhost/the-team link does not open the app - and that reads as a
+# broken install rather than a wrong port.
+$apachePort = '80'
+$httpdConf = 'C:\xampp\apache\conf\httpd.conf'
+if (Test-Path $httpdConf) {
+    $listen = Select-String -Path $httpdConf -Pattern '^\s*Listen\s+(\d+)' | Select-Object -First 1
+    if ($listen) { $apachePort = $listen.Matches[0].Groups[1].Value }
+}
+$siteUrl = if ($apachePort -eq '80') { "http://localhost$prefix" } else { "http://localhost:$apachePort$prefix" }
+
 Write-Host ''
 Write-Host '  Installed' -ForegroundColor Green
 Write-Host "  ================"
 Write-Host ''
 Write-Host "  Start Apache from the XAMPP control panel, then open:"
 Write-Host ''
-Write-Host "    http://localhost$prefix" -ForegroundColor White
+Write-Host "    $siteUrl" -ForegroundColor White
 Write-Host ''
 if ($adminPassword) {
-    Write-Host '  Sign in with admin, and the password recorded in backend\.env'
-    Write-Host '  as ADMIN_PASSWORD.'
+    Write-Host "  Sign in as admin, with ADMIN_PASSWORD from backend\.env."
+    if ($adminPassword -eq $defaultAdminPassword) {
+        # Stated plainly, because it is a shared value in a published file and the
+        # operator should know that rather than discover it.
+        Write-Host "  Nothing else is on record, so that is the starting password:" -ForegroundColor DarkGray
+        Write-Host "    $defaultAdminPassword" -ForegroundColor DarkGray
+    }
+    Write-Host ''
+    Write-Host '  The app asks you to choose your own password before it opens anything' -ForegroundColor White
+    Write-Host '  else, and refuses the rest of the API until you have. That applies to all' -ForegroundColor White
+    Write-Host '  four administrator accounts.' -ForegroundColor White
 } else {
     Write-Host '  Sign in with admin. No password is on record here - run the seed with'
     Write-Host '  ADMIN_PASSWORD set to choose one.'
@@ -501,5 +629,5 @@ Write-Host '  The Node version on port 5000 is no longer involved and can be sto
 Write-Host ''
 
 if ($Open) {
-    Start-Process "http://localhost$prefix"
+    Start-Process $siteUrl
 }
