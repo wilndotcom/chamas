@@ -113,6 +113,131 @@ final class AuthController
         ]);
     }
 
+    /**
+ * A member applies to join the chama.
+ *
+ * The route has pointed here since the port began, and the method was never
+ * written, so every application died on an undefined call. The symptom was an
+ * HTML error page where the registration form expected JSON, which reads in the
+ * browser as a parsing failure rather than as a missing endpoint.
+ *
+ * A direct translation of memberRegister in backend/controllers/authController.js.
+ * The column default is also 'pending', but it is written here rather than
+ * relied on: an application that silently became active would hand a stranger
+ * access to the members' money.
+ */
+public static function memberRegister(Request $r): void
+    {
+        try {
+            $body = $r->body();
+
+            $fullName = trim((string) ($body['full_name'] ?? ''));
+            $phone = trim((string) ($body['phone'] ?? ''));
+            $password = (string) ($body['password'] ?? '');
+            $confirm = $body['confirm_password'] ?? null;
+            $email = trim((string) ($body['email'] ?? ''));
+            $idNumber = trim((string) ($body['id_number'] ?? ''));
+
+            if ($fullName === '' || $phone === '' || $password === '') {
+                Response::error('Full name, phone and password are required.', 400);
+            }
+
+            if (strlen($password) < 6) {
+                Response::error('Password must be at least 6 characters.', 400);
+            }
+
+            // Checked only when the form sent it. The API is public, and a
+            // caller that omits the confirmation has not made a typo.
+            if ($confirm !== null && $password !== (string) $confirm) {
+                Response::error('Passwords do not match.', 400);
+            }
+
+            /*
+             * The number is put into the one stored form, rather than checked
+             * against a narrow pattern and stored as typed.
+             *
+             * A member copying their number off an M-Pesa confirmation brings
+             * +254712345678, and that must be the same person as the 0712345678
+             * already on file - otherwise one member is two rows, their payments
+             * split across both, and neither balance is right.
+             */
+            $storedPhone = Phone::toMemberPhone($phone);
+
+            if ($storedPhone === null) {
+                Response::error(
+                    'Enter a valid Kenyan phone number, e.g. 0712345678.',
+                    400
+                );
+            }
+
+            if ($idNumber !== '' && strlen($idNumber) < 6) {
+                Response::error('That ID number looks too short.', 400);
+            }
+
+            /*
+             * Which of the three refusals this is matters, and each is told
+             * apart: "you already applied" tells somebody waiting to wait,
+             * "declined" tells them to phone the office, and "already
+             * registered" is the only one that should feel like a door closing.
+             */
+            $existing = Database::one('SELECT id, status FROM members WHERE phone = ?', [$storedPhone]);
+
+            if ($existing !== null) {
+                if ($existing['status'] === 'pending') {
+                    Response::error('You already applied and are waiting for approval.', 409);
+                }
+
+                if ($existing['status'] === 'rejected') {
+                    Response::error(
+                        'Your application was declined. Please contact the chama office.',
+                        409
+                    );
+                }
+
+                Response::error('That phone number is already registered.', 409);
+            }
+
+            if ($email !== '') {
+                $taken = Database::one('SELECT id FROM members WHERE email = ?', [$email]);
+
+                if ($taken !== null) {
+                    Response::error('That email address is already registered.', 409);
+                }
+            }
+
+            $id = Database::insert(
+                <<<'SQL'
+                    INSERT INTO members
+                      (full_name, email, phone, id_number, password_hash, status,
+                       emergency_contact_name, emergency_contact_phone, joined_date)
+                    VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, CURDATE())
+                    SQL,
+                [
+                    $fullName,
+                    $email !== '' ? $email : null,
+                    $storedPhone,
+                    $idNumber !== '' ? $idNumber : null,
+                    password_hash($password, PASSWORD_BCRYPT, ['cost' => self::BCRYPT_COST]),
+                    !empty($body['emergency_contact_name'])
+                        ? trim((string) $body['emergency_contact_name']) : null,
+                    !empty($body['emergency_contact_phone'])
+                        ? Phone::toMemberPhone($body['emergency_contact_phone']) : null,
+                ]
+            );
+
+            Response::json([
+                'success' => true,
+                'member_id' => $id,
+                'status' => 'pending',
+                'message' => 'Registration received. An admin will review your application, '
+                    . 'and you can log in once approved.',
+            ], 201);
+        } catch (\Throwable $e) {
+            Log::warn('memberRegister: ' . $e->getMessage());
+            Response::error('Registration failed. Please try again.', 500);
+        }
+    }
+
     public static function memberLogin(Request $r): void
     {
         $body = $r->body();

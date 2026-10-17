@@ -39,7 +39,7 @@ echo "\nFinding lifecycle test records...\n";
  */
 $members = Database::all(
     "SELECT id, full_name, phone FROM members
-      WHERE full_name LIKE '% Test'
+      WHERE full_name LIKE '%Test%'
          OR full_name IN ('Lifecycle Test', 'Transparency Test', 'M-Pesa Test')"
 );
 
